@@ -4,12 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-This repo currently contains **planning and design artifacts only** — there is no Django project, no source code, and no build/lint/test tooling yet. Before assuming any command works, check whether the app scaffold in `docs/solution-plan.md` Step 1 has actually been created; do not invent `manage.py`/`npm`/tooling commands that don't exist on disk.
+**The Django scaffold exists** (Epic 0 + Epic 1 of `docs/task-breakdown.md`, committed). Project `gtd`, single app `core`, `manage.py` at repo root. Build order continues per `docs/solution-plan.md` Steps 2–12 / `docs/task-breakdown.md` Epics 2–12 — check that file's checkboxes (`[x]` done, `[~]` partial, `[ ]` not started) before assuming a screen or model exists.
 
 - `docs/solution-plan.md` — the authoritative spec: data models (exact field lists in Step 2), build order (Steps 1–12), decision log, and rollout milestones. Treat model/field definitions here as literal — implement as written rather than redesigning.
 - `docs/design.md` — the UI/visual design spec (tokens, components, screens, copy). Read together with the solution plan. **Where they conflict: `solution-plan.md` wins on behavior, `design.md` wins on look and feel.**
+- `docs/task-breakdown.md` — the epic/subtask checklist tracking implementation against the plan above, plus a running log of decisions confirmed during planning (open-decision defaults, git setup, scaffold-from-scratch choice). Update its checkboxes as work lands; don't let it drift from what's actually on disk.
 - `design-files/*.dc.html` — visual mockups/prototypes exported from a design tool (custom `<x-dc>`, `sc-if`, `sc-for`, `{{ }}` template syntax driven by `support.js`). These are references for layout/visual intent only — do not copy their templating syntax into Django templates; translate the visuals into HTMX/Django partials per `design.md` §4.
 - `design-files/uploads/` contains duplicate copies of `design.md`/`solution-plan.md` plus reference screenshots — the `docs/` copies are the ones to edit.
+
+### Local dev environment
+
+- Virtualenv at `.venv/` (not committed). Activate or call directly: `.venv/Scripts/python.exe manage.py <command>`.
+- Requirements split: `requirements/base.txt`, `dev.txt`, `prod.txt` (installed manually so far; no lockfile yet).
+- Postgres: dev DB is `gtd` on the existing shared `postgres-container` Docker container (user `sudipto`), **not** a project-dedicated container — reuses infra also used by other personal projects (e.g. `jimmy` db in the same instance). Connection string lives in `.env` (gitignored; see `.env.example` for the shape). Postgres is required from day one (Notes FTS) — don't fall back to SQLite.
+- Tailwind: standalone CLI binary at `.bin/tailwindcss.exe` (gitignored, ~40MB — re-download from the v3.4.17 GitHub release if missing, not v4: the config uses v3-style `tailwind.config.js` + `safelist`). Rebuild with `.bin/tailwindcss.exe -i static/css/input.css -o static/css/app.css --minify`. `static/css/app.css` is the committed, pre-built output — `input.css` is the source.
+- Tests: `.venv/Scripts/python.exe manage.py test core`.
+- Known gaps (tracked in `docs/task-breakdown.md` Epic 1, marked `[~]`): font woff2 binaries not sourced (falls back to system fonts), PWA icon PNGs (192/512) not generated.
+- Git identity is set repo-local only (`git config user.name/email` without `--global`) — do not touch global git config.
 
 ## Product summary
 
