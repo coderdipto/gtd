@@ -110,11 +110,11 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 6 — Notes (Reference) + search (M1)
 
-- [ ] `/notes`: Postgres `SearchVector` (title+body) updated via `post_save` signal, GIN index; tag filter; detail view with rendered markdown; attachments (`MEDIA_ROOT`, nginx-served later, 20MB cap); inline edit.
-- [ ] Inbox → Note conversion (already wired in Step 4's Reference path — verify here).
-- [ ] Task → Note conversion ("this turned out to be reference"): copy fields, trash the task.
-- [ ] **Test:** FTS returns match on body text; conversion preserves tags.
-- [ ] **Rollback:** independent module.
+- [x] `/notes`: Postgres `SearchVector` (title+body) updated via `post_save` signal (`core/signals.py`, registered in `CoreConfig.ready()`), GIN index already existed from Epic 2; tag filter (plain `#tag` chips only, not `@context` — Notes don't carry contexts); detail view with rendered markdown (`markdownify` filter in `core/templatetags/gtd_extras.py`, using the new `Markdown` dependency — added to `requirements/base.txt`, no HTML sanitization pass since it's a single-author single-user system); attachments (`MEDIA_ROOT`, 20MB cap enforced in `core/notes.py::note_attachment_upload`, nginx `X-Accel-Redirect` for private serving is Epic 12); inline edit (Alpine view/edit toggle on `note_detail.html`, editing is additive-tag-sync like everywhere else).
+- [x] Inbox → Note conversion (Step 4's Reference path, `core/clarify.py::clarify_reference`) — re-verified against the real Notes module now that it exists and is searchable (`InboxReferenceConversionTests`).
+- [x] Task → Note conversion ("this turned out to be reference"): `core/notes.py::task_convert_to_note` copies title/description and tags (direct M2M copy, not text re-parse), trashes the source task; wired into `task_row.html`'s ⋮ menu via `core/lists.py::_menu_moves`.
+- [x] **Test:** FTS matches on body and title text, excludes trashed notes; conversion preserves tags (both directions); markdown rendering; soft-delete; oversized-attachment rejection. 20 new tests, 81/81 passing. Attachment-upload tests run under an isolated temp `MEDIA_ROOT` (`@override_settings`) so they don't leave files in the real `media/` — caught after an initial run polluted it.
+- [x] **Rollback:** independent module.
 
 **— M1 milestone checkpoint: full offline GTD system usable end-to-end (capture, clarify, all lists, contexts, notes, ordering, horizons) —**
 

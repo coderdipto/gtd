@@ -1,6 +1,16 @@
+import markdown as _markdown
 from django import template
+from django.utils.safestring import mark_safe
 
 register = template.Library()
+
+
+@register.filter
+def markdownify(text):
+    """Renders Note.body markdown to HTML (docs/task-breakdown.md Epic 6).
+    Single-user, self-hosted system - no HTML sanitization pass, since the
+    only author of this content is the same person viewing it."""
+    return mark_safe(_markdown.markdown(text or "", extensions=["extra", "nl2br"]))
 
 # Status/badge -> class-string map (docs/design.md §6/§8.1): kept here as a
 # closed set of full literal Tailwind class strings, never assembled by

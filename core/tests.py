@@ -1,11 +1,12 @@
 import json
+import tempfile
 from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -683,3 +684,124 @@ class ScreenRenderSmokeTests(TestCase):
         response = self.client.get(reverse("project_detail", args=[project.id]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "A subtask")
+
+
+class NoteSearchTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_search_matches_body_text(self):
+        Note.objects.create(title="Recipe", body="A great sourdough starter guide.")
+        Note.objects.create(title="Unrelated", body="Something else entirely.")
+        response = self.client.get(reverse("notes"), {"q": "sourdough"})
+        self.assertContains(response, "Recipe")
+        self.assertNotContains(response, "Unrelated")
+
+    def test_search_matches_title_text(self):
+        Note.objects.create(title="Sourdough starter guide", body="")
+        response = self.client.get(reverse("notes"), {"q": "starter"})
+        self.assertContains(response, "Sourdough starter guide")
+
+    def test_trashed_notes_excluded_from_list_and_search(self):
+        Note.objects.create(title="Gone", body="findme", trashed_at=timezone.now())
+        response = self.client.get(reverse("notes"))
+        self.assertNotContains(response, "Gone")
+        response = self.client.get(reverse("notes"), {"q": "findme"})
+        self.assertNotContains(response, "Gone")
+
+    def test_note_create_and_tag_parsing(self):
+        self.client.post(reverse("note_create"), {"title": "Shopping", "body": "Milk @errand #home"})
+        note = Note.objects.get(title="Shopping")
+        names = set(note.tags.values_list("name", flat=True))
+        self.assertEqual(names, {"errand", "home"})
+
+    def test_note_update_renders_markdown(self):
+        note = Note.objects.create(title="Doc", body="plain")
+        self.client.post(reverse("note_update", args=[note.id]), {"title": "Doc", "body": "# Heading\n\nSome *text*"})
+        response = self.client.get(reverse("note_detail", args=[note.id]))
+        self.assertContains(response, "<h1>Heading</h1>")
+
+    def test_note_delete_is_soft(self):
+        note = Note.objects.create(title="To trash", body="")
+        self.client.post(reverse("note_delete", args=[note.id]))
+        note.refresh_from_db()
+        self.assertIsNotNone(note.trashed_at)
+        self.assertTrue(Note.objects.filter(id=note.id).exists())
+
+
+class TaskToNoteConversionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_conversion_copies_fields_tags_and_trashes_task(self):
+        tag = Tag.objects.create(name="reading")
+        task = Task.objects.create(title="Interesting article", description="Some notes about it")
+        task.tags.add(tag)
+
+        self.client.post(reverse("task_convert_to_note", args=[task.id]))
+
+        note = Note.objects.get(title="Interesting article")
+        self.assertEqual(note.body, "Some notes about it")
+        self.assertIn(tag, note.tags.all())
+
+        task.refresh_from_db()
+        self.assertEqual(task.list, Task.List.TRASH)
+        self.assertIsNotNone(task.trashed_at)
+
+
+class InboxReferenceConversionTests(TestCase):
+    """Re-confirms Epic 4's Reference path lands in the real Notes module now
+    that it exists (task-breakdown.md Epic 6: 'verify here')."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_reference_path_note_is_searchable(self):
+        item = InboxItem.objects.create(title="Article", description="Long read about gardening")
+        self.client.post(
+            reverse("clarify_reference", args=[item.id]),
+            {"title": "Article", "body": "Long read about gardening #reading"},
+        )
+        response = self.client.get(reverse("notes"), {"q": "gardening"})
+        self.assertContains(response, "Article")
+
+
+_MEDIA_TMPDIR = tempfile.mkdtemp(prefix="gtd_test_media_")
+
+
+@override_settings(MEDIA_ROOT=_MEDIA_TMPDIR)
+class NoteScreenSmokeTests(TestCase):
+    # Attachment uploads hit real FileSystemStorage (not transactional like
+    # the DB), so MEDIA_ROOT is redirected to a throwaway temp dir for this
+    # class - otherwise test runs leave files behind in the real media/.
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_notes_and_create_render_empty(self):
+        for name in ("notes", "note_create"):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200, name)
+
+    def test_note_detail_renders_with_attachment(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        note = Note.objects.create(title="Doc", body="body text")
+        self.client.post(
+            reverse("note_attachment_upload", args=[note.id]),
+            {"file": SimpleUploadedFile("notes.txt", b"hello")},
+        )
+        response = self.client.get(reverse("note_detail", args=[note.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "notes.txt")
+
+    def test_oversized_attachment_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        note = Note.objects.create(title="Doc", body="")
+        big_file = SimpleUploadedFile("big.bin", b"x" * (21 * 1024 * 1024))
+        self.client.post(reverse("note_attachment_upload", args=[note.id]), {"file": big_file})
+        self.assertEqual(note.attachments.count(), 0)

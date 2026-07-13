@@ -58,4 +58,23 @@
   [x-cloak] {
     display: none !important;
   }
+
+  /* Rendered Note markdown (core/templatetags/gtd_extras.py::markdownify) -
+     no @tailwindcss/typography plugin per the no-build-pipeline rule, so a
+     minimal hand-rolled set of element styles instead. */
+  .prose-note :is(h1, h2, h3) {
+    @apply font-display font-bold mt-4 mb-2;
+  }
+  .prose-note h1 { @apply text-xl; }
+  .prose-note h2 { @apply text-lg; }
+  .prose-note h3 { @apply text-base; }
+  .prose-note p { @apply mb-3; }
+  .prose-note :is(ul, ol) { @apply mb-3 ml-5; }
+  .prose-note ul { @apply list-disc; }
+  .prose-note ol { @apply list-decimal; }
+  .prose-note a { @apply text-water underline; }
+  .prose-note code { @apply font-mono text-xs bg-line rounded px-1 py-0.5; }
+  .prose-note pre { @apply font-mono text-xs bg-line rounded-md p-3 overflow-x-auto mb-3; }
+  .prose-note pre code { @apply bg-transparent p-0; }
+  .prose-note blockquote { @apply border-l-2 border-line pl-3 text-ink-soft italic mb-3; }
 }

@@ -59,10 +59,12 @@ def _menu_moves(task):
         ("waiting", "Move to Waiting For"),
         ("trash", "Move to Trash"),
     ]
-    return [
+    moves = [
         {"label": label, "url": reverse("task_move", args=[task.id, target])}
         for target, label in options
     ]
+    moves.append({"label": "Convert to note", "url": reverse("task_convert_to_note", args=[task.id])})
+    return moves
 
 
 def _context_chips(request, param="context"):

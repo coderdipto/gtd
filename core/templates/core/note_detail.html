@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}{{ note.title }} · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6" x-data="{ editing: false }">
+  <div class="flex items-center justify-between gap-3 mb-1">
+    <h1 class="font-display font-bold text-2xl truncate" x-show="!editing">{{ note.title }}</h1>
+    <div class="flex items-center gap-2 shrink-0">
+      <button type="button" @click="editing = !editing"
+              class="h-9 px-3 rounded-md border border-line text-sm hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+        <span x-text="editing ? 'Cancel' : 'Edit'"></span>
+      </button>
+      <form method="post" action="{% url 'note_delete' note.id %}"
+            hx-confirm="Move this note to trash?" x-show="!editing">
+        {% csrf_token %}
+        <button type="submit" class="h-9 px-3 rounded-md text-red text-sm hover:underline focus-visible:ring-2 ring-water focus:outline-none">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  {% if note.tags.all %}
+    <div class="flex items-center gap-2 mb-4" x-show="!editing">
+      {% for tag in note.tags.all %}<span class="text-xs font-mono text-ink-soft">{{ tag }}</span>{% endfor %}
+    </div>
+  {% endif %}
+
+  <div x-show="!editing" class="prose-note text-sm leading-relaxed mb-6">
+    {{ note.body|markdownify }}
+  </div>
+
+  <div x-show="editing" x-cloak class="mb-6">
+    <form method="post" action="{% url 'note_update' note.id %}" class="space-y-3">
+      {% csrf_token %}
+      <input type="text" name="title" value="{{ note.title }}" required
+             class="w-full h-10 text-lg font-medium border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+      <textarea name="body" rows="12" placeholder="@context #tag"
+                class="w-full text-sm border border-line rounded-md p-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">{{ note.body }}</textarea>
+      <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save</button>
+    </form>
+  </div>
+
+  <div>
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Attachments</h2>
+    <div class="space-y-1 mb-3">
+      {% for att in note.attachments.all %}
+        <div class="flex items-center justify-between text-sm py-1">
+          <a href="{{ att.file.url }}" class="text-water hover:underline truncate" target="_blank" rel="noopener">{{ att.original_name }}</a>
+          <form method="post" action="{% url 'note_attachment_delete' note.id att.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-red text-xs hover:underline focus-visible:ring-2 ring-water focus:outline-none">Remove</button>
+          </form>
+        </div>
+      {% empty %}
+        <p class="text-ink-soft text-sm">No attachments.</p>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'note_attachment_upload' note.id %}" enctype="multipart/form-data" class="flex items-center gap-2">
+      {% csrf_token %}
+      <input type="file" name="file" required class="text-sm">
+      <button type="submit" class="h-9 px-3 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none">Upload (max 20MB)</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

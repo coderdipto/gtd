@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}Notes · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between gap-3 mb-4">
+    <h1 class="font-display font-bold text-2xl">Notes</h1>
+    <a href="{% url 'note_create' %}"
+       class="h-9 px-3 rounded-md bg-water text-white text-sm font-medium flex items-center focus-visible:ring-2 ring-water focus:outline-none">
+      + New note
+    </a>
+  </div>
+
+  <form method="get" class="mb-3">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search notes…"
+           class="w-full h-10 text-sm border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+  </form>
+
+  {% if chips %}<div class="mb-4">{% include "components/filter_bar.html" %}</div>{% endif %}
+
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for note in notes %}
+      <a href="{% url 'note_detail' note.id %}" class="block py-3 px-1 hover:bg-water-soft/30 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+        <p class="text-sm font-medium truncate">{{ note.title }}</p>
+        <div class="flex items-center gap-2 mt-1">
+          <p class="font-mono text-xs text-ink-soft">{{ note.updated_at|date:"d M Y" }}</p>
+          {% for tag in note.tags.all %}
+            <span class="text-xs font-mono text-ink-soft">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </a>
+    {% empty %}
+      {% url 'note_create' as note_create_url %}
+      {% include "components/empty_state.html" with icon="icons/inbox.svg" heading="No notes yet." body="Reference material lands here from the clarify wizard, or add one directly." action_url=note_create_url action_label="New note" %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

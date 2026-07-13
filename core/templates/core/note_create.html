@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}New note · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-4">New note</h1>
+  <form method="post" class="space-y-3">
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="Title" required autofocus
+           class="w-full h-10 text-lg font-medium border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+    <textarea name="body" rows="12" placeholder="@context #tag"
+              class="w-full text-sm border border-line rounded-md p-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water"></textarea>
+    <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save note</button>
+  </form>
+</div>
+{% endblock %}

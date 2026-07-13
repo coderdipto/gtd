@@ -2,7 +2,7 @@ from functools import partial
 
 from django.urls import path
 
-from . import clarify, lists, projects, tags, views
+from . import clarify, lists, notes, projects, tags, views
 
 # Named routes referenced by base.html nav. Real implementations land in
 # their own epics (see docs/task-breakdown.md); until then each renders
@@ -41,7 +41,18 @@ urlpatterns = [
     path("waiting/<int:pk>/nudge/", lists.waiting_nudge, name="waiting_nudge"),
     path("someday/", lists.someday_view, name="someday"),
     path("someday/<int:pk>/activate/", lists.someday_activate, name="someday_activate"),
-    path("notes/", partial(views.stub, title="Notes"), name="notes"),
+    path("notes/", notes.notes_view, name="notes"),
+    path("notes/new/", notes.note_create, name="note_create"),
+    path("notes/<int:pk>/", notes.note_detail, name="note_detail"),
+    path("notes/<int:pk>/update/", notes.note_update, name="note_update"),
+    path("notes/<int:pk>/delete/", notes.note_delete, name="note_delete"),
+    path("notes/<int:pk>/attachments/", notes.note_attachment_upload, name="note_attachment_upload"),
+    path(
+        "notes/<int:pk>/attachments/<int:attachment_pk>/delete/",
+        notes.note_attachment_delete,
+        name="note_attachment_delete",
+    ),
+    path("tasks/<int:pk>/convert-to-note/", notes.task_convert_to_note, name="task_convert_to_note"),
     path("recurring/", partial(views.stub, title="Recurring"), name="recurring"),
     path("tags/", tags.tags_view, name="tags"),
     path("tags/<int:pk>/toggle-context/", tags.tag_toggle_context, name="tag_toggle_context"),
