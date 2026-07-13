@@ -1,0 +1,9 @@
+{% comment %}Q2 drop: inline slot picker (docs/design.md/solution-plan.md Step 9e).{% endcomment %}
+<div id="eh-card-{{ project.id }}" class="bg-surface border border-violet rounded-md px-3 py-2 text-sm">
+  <p class="font-medium truncate max-w-[10rem] mb-2">{{ project.title }}</p>
+  <form hx-post="{% url 'review_eisenhower_drop' project.id 'q2' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML" class="space-y-2">
+    <label class="block text-xs text-ink-soft">Schedule for next week</label>
+    <input type="datetime-local" name="slot_start" required class="w-full h-8 text-xs border border-line rounded-md px-1">
+    <button type="submit" class="w-full h-8 rounded-md bg-violet text-white text-xs">Schedule</button>
+  </form>
+</div>

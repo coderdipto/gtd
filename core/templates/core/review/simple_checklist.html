@@ -1,0 +1,19 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}{{ cadence|capfirst }} Review{% endblock %}
+{% block wizard_heading %}{{ cadence|capfirst }} check-in{% endblock %}
+{% block wizard_helper %}A lighter, guided pass - no phases, just the prompts.{% endblock %}
+{% block wizard_body %}
+<ul class="list-decimal list-inside text-sm space-y-2 text-ink-soft mb-4">
+  {% for prompt in prompts %}<li>{{ prompt }}</li>{% endfor %}
+</ul>
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <label class="block text-xs text-ink-soft mb-1">Capture whatever comes up</label>
+  <textarea name="capture" rows="4" class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none mb-2"></textarea>
+  <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Capture to inbox</button>
+</form>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="finish" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Finish review →</button>
+</form>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% comment %}Q3/Q4 drop: pick which resolving action to take.{% endcomment %}
+<div id="eh-card-{{ project.id }}" class="bg-surface border border-line rounded-md px-3 py-2 text-sm">
+  <p class="font-medium truncate max-w-[10rem] mb-2">{{ project.title }}</p>
+  {% if quadrant == "q3" %}
+    <form hx-post="{% url 'review_eisenhower_drop' project.id 'q3' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML" class="space-y-1 mb-1">
+      <input type="hidden" name="action" value="waiting">
+      <input type="text" name="waiting_on" placeholder="Delegate to…" class="w-full h-8 text-xs border border-line rounded-md px-1 mb-1">
+      <button type="submit" class="w-full h-8 rounded-md bg-amber text-white text-xs">Delegate (Waiting For)</button>
+    </form>
+    <form hx-post="{% url 'review_eisenhower_drop' project.id 'q3' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML">
+      <input type="hidden" name="action" value="someday">
+      <button type="submit" class="w-full h-8 rounded-md border border-line text-xs">Project → Someday</button>
+    </form>
+  {% else %}
+    <form hx-post="{% url 'review_eisenhower_drop' project.id 'q4' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML" class="mb-1">
+      <input type="hidden" name="action" value="someday">
+      <button type="submit" class="w-full h-8 rounded-md border border-line text-xs">Someday</button>
+    </form>
+    <form hx-post="{% url 'review_eisenhower_drop' project.id 'q4' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML">
+      <input type="hidden" name="action" value="trash">
+      <button type="submit" class="w-full h-8 rounded-md text-red border border-red text-xs">Trash</button>
+    </form>
+  {% endif %}
+</div>

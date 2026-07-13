@@ -153,21 +153,21 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 9 — Reflect: reviews, Eisenhower board, Big-3 (M3)
 
-- [ ] Onboarding banner until all four `ReviewConfig`s set; saving a config creates its recurring GCal event.
-- [ ] Weekly Review wizard (`/review/weekly`, resumable via `phase_state`):
-  - [ ] Get Clear: inbox-to-zero gate (or explicit skip) + mind-sweep capture box.
-  - [ ] Get Current (a): projects checklist with 🟡/🔴 resolving actions inline.
-  - [ ] Get Current (b): carried-over queue, one-by-one, Keep/Demote/Someday/Trash, hard gate (cannot proceed past unresolved items).
-  - [ ] Get Current (c): Waiting For overdue pass (nudged/got it/drop).
-  - [ ] Get Current (d): calendar pass (last 2 weeks capture box + next 2 weeks preview).
-  - [ ] Get Current (e): Eisenhower board — 2×2 drag (SortableJS), active projects as cards, per-quadrant drop actions (Q1 checkmark/prompt, Q2 slot picker + `q2_week` set, Q3 delegate/someday, Q4 someday/trash); board state never persisted; review-only, per `design.md` layout spec (quadrant tints, axis labels, inline flip-to-action-UI on drop).
-  - [ ] Get Creative: Someday Activate list, free capture box, Big-3 picker (auto-clear previous stars, max 3).
-  - [ ] Finish: `completed_at`, streak toast, stats snapshot stored.
-- [ ] Monthly wizard: Areas pass (per-Area health + capture box), Someday deep pass, `this_month` carry-over horizon check.
-- [ ] Quarterly/Yearly: static guided checklists (1–2yr goals / vision & principles prompts) + capture boxes, tracked in `ReviewSession`.
-- [ ] Enforcement: GCal recurring blocks (from config save), ntfy T-15min reminder + overdue daily nag, in-app persistent banner + Today header "Last review: N days ago" amber/red thresholds, rotating dismissible "GTD tip" strip (§8.1 pitfalls copy).
-- [ ] **Test:** wizard resume, carried-over gate, Eisenhower drop actions (each quadrant → correct mutation), Big-3 auto-clear, streak computation.
-- [ ] **Rollback:** reviews additive; disable routes; GCal review events removable from settings.
+- [x] Onboarding banner until all four `ReviewConfig`s set (`core/reviews.py::review_dashboard`); saving a config creates its recurring GCal event (`_sync_review_gcal_event`, same gated-no-op-without-credential pattern as Epics 7/8).
+- [x] Weekly Review wizard (`/review/weekly/`, resumable via `phase_state` — a dict on `ReviewSession`, not the Django session, so it survives across logins/devices):
+  - [x] Get Clear: inbox count shown + link into the real clarify wizard + mind-sweep capture box (free text → `InboxItem`s); advancing is an explicit "Skip, I know" rather than a hard gate (matches the plan's "or explicit skip" wording).
+  - [x] Get Current (a): projects checklist with stalled?/no-next badges; "Resolve →" links into the project detail's existing inline resolution UI rather than duplicating subtask-picking UI a second time in the wizard.
+  - [x] Get Current (b): carried-over queue, one-by-one, Keep/Demote/Someday/Trash, **hard gate** — `_weekly_carryover` only allows advancing when no `carried_over_count > 0` task remains; verified server-side (a direct POST while items remain is rejected), not just hidden in the UI.
+  - [x] Get Current (c): Waiting For overdue pass, HTMX Nudge/Got it/Drop reusing the existing `waiting_nudge`/`waiting_got_it`/`task_move` endpoints.
+  - [x] Get Current (d): calendar pass — capture box + next-14-days `TimeBlock` preview (read-only).
+  - [x] Get Current (e): Eisenhower board — 2×2 drag (SortableJS, shared `group: "eisenhower"` across an "Unsorted" tray + 4 quadrants), active projects as cards. Drop actions operate on the project's *current resolved next action* (not the project record, except Q3/Q4's "whole project → Someday/Trash" options): Q1 checkmarks if there's a near-term due date/block or prompts to add one; Q2 shows an inline slot picker (creates a `TimeBlock` + sets `q2_week` to next Monday); Q3/Q4 show a small choice UI (not an immediate action — the initial drop alone doesn't mutate anything, since which specific action to take needs a second click) for delegate/someday or someday/trash respectively. Board layout itself is never persisted, only the resulting mutations.
+  - [x] Get Creative: Someday list with HTMX Activate buttons, free capture box, Big-3 picker (checkbox list, previous stars cleared and re-set atomically, server-side capped at 3 regardless of how many are checked client-side).
+  - [x] Finish: `completed_at` set, streak computed (count of completed sessions for that cadence — a simple "how many times have you finished this," not calendar-period-aware), `stats_snapshot` stored, small celebration screen.
+- [x] Monthly wizard (`/review/monthly/`): Areas pass (health/capture per Area) → Someday deep pass (Activate/Let go) → `this_month`-horizon carry-over check → finish.
+- [x] Quarterly/Yearly (`/review/<cadence>/checklist/`): single-screen static guided prompts + capture box + finish, tracked in `ReviewSession` same as the others.
+- [x] Enforcement: GCal recurring blocks (from config save, above); in-app persistent red banner + global trust-strip amber/red thresholds (`core/context_processors.py::trust_strip`, a new context processor — `inbox_count`/`review_age_days` were stubbed defaults since Epic 1 and never actually wired until now); rotating dismissible "GTD tip" strip on Today's footer (`static/js/gtd-tips.js`, Alpine + `localStorage` dismiss-until-tomorrow). **ntfy T-15min reminder + overdue daily nag deferred to Epic 10** (no notify() helper exists yet). **The §8.1 pitfalls copy is placeholder, not the real source text** — `gtd-detailed-study.md`, the doc `solution-plan.md` attributes this copy to, does not actually exist anywhere in this repository (checked); `gtd-tips.js` ships generic, self-written GTD-pitfall one-liners instead. Swap in the real copy if/when that source doc turns up.
+- [x] **Test:** 33 new tests, 169/169 passing — wizard resume (start creates session at phase 1, wrong-phase URL redirects to current, advancing persists and a fresh "start" resumes there), carried-over hard gate (blocked with items pending, unblocked once clear, each of the 4 resolutions), Eisenhower drop actions per quadrant (Q1 commitment-check both ways, Q2 two-step slot-pick-then-schedule, Q3/Q4 two-step choice-then-mutate, each verified against the actual DB mutation not just the response text), Big-3 auto-clear + 3-item cap, streak computation across multiple finished sessions, monthly/quarterly/yearly wizard flows, trust-strip thresholds, config save/delete incl. mocked GCal event create/delete.
+- [x] **Rollback:** reviews are additive (no other epic depends on `ReviewSession`/`ReviewConfig` existing); `review_config_delete` removes the GCal event when connected; disabling routes leaves every other screen unaffected.
 
 ## Epic 10 — Notifications (ntfy) (M3)
 

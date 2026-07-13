@@ -1,0 +1,31 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Get Current · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Calendar pass{% endblock %}
+{% block wizard_helper %}Anything from the last two weeks worth capturing? Here's what's coming up.{% endblock %}
+{% block wizard_body %}
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <label class="block text-xs text-ink-soft mb-1">Anything to capture from the last 2 weeks?</label>
+  <textarea name="capture" rows="3" class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none mb-2"></textarea>
+  <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Capture to inbox</button>
+</form>
+
+<div class="mb-4">
+  <p class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Next 2 weeks</p>
+  <div class="space-y-1 max-h-64 overflow-y-auto">
+    {% for block in upcoming %}
+      <div class="flex items-center justify-between text-sm font-mono py-1">
+        <span>{{ block.task.title }}</span>
+        <span class="text-ink-soft">{{ block.start|date:"D d M H:i" }}</span>
+      </div>
+    {% empty %}
+      <p class="text-ink-soft text-sm">Nothing scheduled.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Continue →</button>
+</form>
+{% endblock %}

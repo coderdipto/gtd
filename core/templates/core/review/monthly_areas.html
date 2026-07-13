@@ -1,0 +1,26 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Monthly Review · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Areas pass{% endblock %}
+{% block wizard_helper %}For each Area: is it healthy? Anything to start, stop, or capture?{% endblock %}
+{% block wizard_body %}
+<div class="space-y-3 mb-4 max-h-96 overflow-y-auto">
+  {% for area in areas %}
+    <div class="border border-line rounded-md p-3">
+      <p class="text-sm font-medium mb-1">{{ area.name }}</p>
+      {% if area.description %}<p class="text-ink-soft text-xs">{{ area.description }}</p>{% endif %}
+    </div>
+  {% empty %}
+    <p class="text-ink-soft text-sm py-4 text-center">No Areas set up yet.</p>
+  {% endfor %}
+</div>
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <label class="block text-xs text-ink-soft mb-1">Capture anything from this pass</label>
+  <textarea name="capture" rows="3" class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none mb-2"></textarea>
+  <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Capture to inbox</button>
+</form>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Continue →</button>
+</form>
+{% endblock %}

@@ -5,6 +5,12 @@
 <div class="max-w-3xl mx-auto px-4 py-6" x-data="{ anytimeOpen: false }">
   <h1 class="font-display font-bold text-2xl mb-4">Today</h1>
 
+  {% if review_age_days != None and review_age_days > 10 %}
+    <div class="mb-4 rounded-md border border-red bg-red-bg p-3">
+      <p class="text-sm text-red">Your system is only trusted if it's current. Last review: {{ review_age_days }} days ago.</p>
+    </div>
+  {% endif %}
+
   {% if missed_blocks %}
     <div class="mb-4 rounded-md border border-red bg-red-bg p-3">
       <p class="text-sm font-medium text-red mb-2">Missed — reschedule</p>
@@ -51,6 +57,13 @@
           <p class="text-ink-soft text-sm py-6 text-center">Nothing anytime either.</p>
         {% endfor %}
       </div>
+    </div>
+  </div>
+
+  <div class="mt-8" x-data="gtdTipStrip()" x-show="visible" x-cloak>
+    <div class="flex items-center justify-between gap-3 text-xs text-ink-soft border-t border-line pt-3">
+      <p x-text="tip"></p>
+      <button type="button" @click="dismiss()" class="shrink-0 hover:text-ink focus-visible:ring-2 ring-water focus:outline-none rounded-md">Dismiss</button>
     </div>
   </div>
 </div>

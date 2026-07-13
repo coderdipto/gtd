@@ -11,6 +11,7 @@
   <script src="{% static 'js/sortable.min.js' %}" defer></script>
   <script src="{% static 'js/sortable-lists.js' %}" defer></script>
   <script src="{% static 'js/tag-typeahead.js' %}" defer></script>
+  <script src="{% static 'js/gtd-tips.js' %}" defer></script>
   <script src="{% static 'js/alpine.min.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
   <script>
@@ -76,8 +77,12 @@
                 aria-label="Quick capture">
           {% include "icons/plus.svg" %}
         </button>
-        <div class="font-mono text-xs text-ink-soft" id="trust-strip">
-          inbox {{ inbox_count|default:"0" }} &middot; review {{ review_age_days|default:"—" }}
+        <div class="font-mono text-xs" id="trust-strip">
+          <span class="{% if inbox_count > 20 %}text-amber{% else %}text-ink-soft{% endif %}">inbox {{ inbox_count }}</span>
+          &middot;
+          <span class="{% if review_age_days == None %}text-ink-soft{% elif review_age_days > 10 %}text-red{% elif review_age_days > 7 %}text-amber{% else %}text-ink-soft{% endif %}">
+            review {% if review_age_days == None %}never{% else %}{{ review_age_days }}d ago{% endif %}
+          </span>
         </div>
       </header>
 

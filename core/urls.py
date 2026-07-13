@@ -2,7 +2,7 @@ from functools import partial
 
 from django.urls import path
 
-from . import clarify, google_calendar, lists, notes, projects, recurring, tags, timeblocks, views
+from . import clarify, google_calendar, lists, notes, projects, recurring, reviews, tags, timeblocks, views
 
 # Named routes referenced by base.html nav. Real implementations land in
 # their own epics (see docs/task-breakdown.md); until then each renders
@@ -74,7 +74,26 @@ urlpatterns = [
     path("tags/<int:pk>/rename/", tags.tag_rename, name="tag_rename"),
     path("tags/<int:pk>/merge/", tags.tag_merge, name="tag_merge"),
     path("tags/<int:pk>/delete/", tags.tag_delete, name="tag_delete"),
-    path("review/", partial(views.stub, title="Review"), name="review"),
+    path("review/", reviews.review_dashboard, name="review_dashboard"),
+    path("review/", reviews.review_dashboard, name="review"),
+    path("review/config/<str:cadence>/save/", reviews.review_config_save, name="review_config_save"),
+    path("review/config/<str:cadence>/delete/", reviews.review_config_delete, name="review_config_delete"),
+    path("review/weekly/", reviews.review_weekly_start, name="review_weekly_start"),
+    path("review/weekly/<str:phase>/", reviews.review_weekly_phase, name="review_weekly_phase"),
+    path(
+        "review/carryover/<int:pk>/<str:action>/",
+        reviews.review_carryover_resolve,
+        name="review_carryover_resolve",
+    ),
+    path(
+        "review/eisenhower/<int:pk>/drop/<str:quadrant>/",
+        reviews.review_eisenhower_drop,
+        name="review_eisenhower_drop",
+    ),
+    path("review/monthly/", reviews.review_monthly_start, name="review_monthly_start"),
+    path("review/monthly/<str:phase>/", reviews.review_monthly_phase, name="review_monthly_phase"),
+    path("review/<str:cadence>/", reviews.review_simple_start, name="review_simple_start"),
+    path("review/<str:cadence>/<str:phase>/", reviews.review_simple_phase, name="review_simple_phase"),
     path("stats/", partial(views.stub, title="Stats"), name="stats"),
     path("settings/", views.settings_page, name="settings"),
     path("settings/tokens/", views.capture_token_create, name="capture_token_create"),

@@ -1,0 +1,25 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Monthly Review · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Someday deep pass{% endblock %}
+{% block wizard_helper %}A deeper look than the weekly pass - anything ready to activate, or ready to let go of?{% endblock %}
+{% block wizard_body %}
+<div class="space-y-1 mb-4 max-h-96 overflow-y-auto">
+  {% for task in someday_tasks %}
+    <div id="monthly-someday-{{ task.id }}" class="flex items-center justify-between text-sm py-1 border-b border-line">
+      <span>{{ task.title }}</span>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" hx-post="{% url 'someday_activate' task.id %}" hx-target="#monthly-someday-{{ task.id }}" hx-swap="outerHTML"
+                class="h-7 px-2 rounded-md border border-line text-xs">Activate</button>
+        <button type="button" hx-post="{% url 'task_move' task.id 'trash' %}" hx-target="#monthly-someday-{{ task.id }}" hx-swap="outerHTML"
+                class="h-7 px-2 rounded-md text-red text-xs">Let go</button>
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-ink-soft text-sm py-4 text-center">Nothing parked.</p>
+  {% endfor %}
+</div>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Continue →</button>
+</form>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% comment %}
+Replaces an Eisenhower card after its drop action resolves. Board state
+itself is never persisted (docs/design.md) - this is just the visual
+confirmation of the mutation that already happened server-side.
+{% endcomment %}
+<div id="eh-card-{{ project.id }}" class="bg-surface border border-line rounded-md px-3 py-2 text-sm opacity-70">
+  <p class="font-medium truncate max-w-[10rem]">{{ project.title }}</p>
+  {% if quadrant == "q1" %}
+    {% if has_commitment %}
+      <p class="text-water text-xs">✓ already committed this week</p>
+    {% else %}
+      <a href="{% url 'project_detail' project.id %}" class="text-amber text-xs hover:underline">Add a due date/block →</a>
+    {% endif %}
+  {% elif quadrant == "q2" %}
+    <p class="text-violet text-xs">✓ scheduled, Q2 chip set</p>
+  {% elif quadrant == "q3" %}
+    <p class="text-amber text-xs">✓ delegated / parked</p>
+  {% elif quadrant == "q4" %}
+    <p class="text-ink-soft text-xs">✓ someday / dropped</p>
+  {% endif %}
+</div>

@@ -60,3 +60,9 @@ def get_item(mapping, key):
     """Dict lookup by variable key - Django's `.` lookup only works with
     literal keys in templates, so per-row meta/marker dicts need this."""
     return mapping.get(key) if mapping else None
+
+
+@register.filter
+def times(n):
+    """{% for _ in n|times %} - Django templates have no built-in range()."""
+    return range(int(n))

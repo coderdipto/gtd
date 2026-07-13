@@ -10,9 +10,9 @@ the Inbox (nothing is lost - items simply stay unprocessed).
 {% block content %}
 <div class="min-h-full bg-ink/[0.03] flex items-start justify-center py-10 px-4"
      x-data
-     @keydown.window.escape="window.location = '{% url 'inbox' %}'"
+     @keydown.window.escape="window.location = '{% block exit_url %}{% url 'inbox' %}{% endblock %}'"
      @keydown.window="if (['1','2','3','4','5','6','7','8','9'].includes($event.key)) { const el = document.querySelector('[data-wizard-key=\'' + $event.key + '\']'); if (el) el.click(); }">
-  <div class="w-full max-w-xl bg-surface border border-line rounded-md shadow-sm overflow-hidden">
+  <div class="w-full {% block wizard_width %}max-w-xl{% endblock %} bg-surface border border-line rounded-md shadow-sm overflow-hidden">
     <div class="h-0.5 bg-line">
       <div class="h-0.5 bg-water transition-all" style="width: {% widthratio step total 100 %}%"></div>
     </div>
@@ -21,6 +21,8 @@ the Inbox (nothing is lost - items simply stay unprocessed).
         <span class="text-xs uppercase tracking-wide text-ink-soft font-medium">{% block wizard_label %}Clarify{% endblock %}</span>
         <span class="font-mono text-xs text-ink-soft">{{ step }} / {{ total }}</span>
       </div>
+
+      {% block wizard_subheader %}{% endblock %}
 
       {% if item %}
         <div class="bg-paper border border-line rounded-md p-3 mb-4">

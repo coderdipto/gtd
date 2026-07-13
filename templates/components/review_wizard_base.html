@@ -1,0 +1,18 @@
+{% extends "components/focus_card_base.html" %}
+{% load gtd_extras %}
+{% comment %}
+Shared chrome for every review wizard phase (docs/design.md "Review wizard":
+same focus-card, but max-w-2xl for list-bearing steps, plus a phase dot-rail).
+Context needed: `total` (total phases) and `step` (1-indexed current phase
+number - both already required by focus_card_base.html itself).
+{% endcomment %}
+{% block wizard_width %}max-w-2xl{% endblock %}
+{% block exit_url %}{% url 'review_dashboard' %}{% endblock %}
+{% block wizard_label %}Review{% endblock %}
+{% block wizard_subheader %}
+  <div class="flex items-center gap-2 mb-4">
+    {% for _ in total|times %}
+      <span class="w-2 h-2 rounded-full {% if forloop.counter <= step %}bg-water{% else %}bg-line{% endif %}"></span>
+    {% endfor %}
+  </div>
+{% endblock %}

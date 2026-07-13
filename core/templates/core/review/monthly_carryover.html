@@ -1,0 +1,21 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Monthly Review · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}This month's carry-overs{% endblock %}
+{% block wizard_helper %}Tasks whose horizon is This Month and have carried over at least once.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-1 mb-4 max-h-96 overflow-y-auto">
+  {% for task in tasks %}
+    <div class="flex items-center justify-between text-sm py-1 border-b border-line">
+      <span>{{ task.title }}</span>
+      <span class="font-mono text-xs text-amber">↩ ×{{ task.carried_over_count }}</span>
+    </div>
+  {% empty %}
+    <p class="text-ink-soft text-sm py-4 text-center">Nothing carried over this month.</p>
+  {% endfor %}
+</div>
+<p class="text-ink-soft text-xs mb-4">Resolve individual items from <a href="{% url 'tasks' %}" class="text-water hover:underline">Next Actions</a> if needed.</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="finish" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Finish review →</button>
+</form>
+{% endblock %}

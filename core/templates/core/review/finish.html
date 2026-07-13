@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Review complete · GTD{% endblock %}
+{% block content %}
+<div class="min-h-full flex items-center justify-center py-10 px-4">
+  <div class="w-full max-w-xl bg-surface border border-line rounded-md shadow-sm p-10 text-center">
+    <p class="font-display font-bold text-3xl mb-2">Review complete 🎉</p>
+    <p class="text-ink-soft text-sm mb-4">{{ session.get_cadence_display }} review done.</p>
+    <p class="font-display font-bold text-2xl mb-1">{{ streak }}</p>
+    <p class="font-mono text-xs text-ink-soft mb-6">review streak</p>
+    <a href="{% url 'review_dashboard' %}" class="inline-flex h-11 px-4 items-center rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">
+      Back to Review
+    </a>
+  </div>
+</div>
+{% endblock %}

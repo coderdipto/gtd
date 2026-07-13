@@ -1,0 +1,36 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Get Current · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Carried-over queue{% endblock %}
+{% block wizard_helper %}Decide, don't defer again: keep, demote, park, or drop.{% endblock %}
+{% block wizard_body %}
+{% if task %}
+  <div class="bg-paper border border-line rounded-md p-3 mb-4">
+    <p class="text-sm font-medium">{{ task.title }}</p>
+    <p class="font-mono text-xs text-ink-soft mt-1">carried over ×{{ task.carried_over_count }}</p>
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+    <form method="post" action="{% url 'review_carryover_resolve' task.id 'keep' %}">
+      {% csrf_token %}
+      <button type="submit" data-wizard-key="1" class="w-full h-11 rounded-md bg-water text-white text-sm font-medium">1 · Keep</button>
+    </form>
+    <form method="post" action="{% url 'review_carryover_resolve' task.id 'demote' %}">
+      {% csrf_token %}
+      <button type="submit" data-wizard-key="2" class="w-full h-11 rounded-md border border-line text-sm hover:border-water">2 · Demote to Anytime</button>
+    </form>
+    <form method="post" action="{% url 'review_carryover_resolve' task.id 'someday' %}">
+      {% csrf_token %}
+      <button type="submit" data-wizard-key="3" class="w-full h-11 rounded-md border border-line text-sm hover:border-water">3 · Someday</button>
+    </form>
+    <form method="post" action="{% url 'review_carryover_resolve' task.id 'trash' %}">
+      {% csrf_token %}
+      <button type="submit" data-wizard-key="4" class="w-full h-11 rounded-md border border-line text-red text-sm hover:border-red">4 · Trash</button>
+    </form>
+  </div>
+{% else %}
+  <p class="text-sm text-ink-soft mb-4">All carried-over items resolved.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Continue →</button>
+  </form>
+{% endif %}
+{% endblock %}

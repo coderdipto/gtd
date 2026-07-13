@@ -19,12 +19,15 @@ from core.models import (
     InboxItem,
     Note,
     RecurringTemplate,
+    ReviewConfig,
+    ReviewSession,
     SyncChannel,
     Tag,
     Task,
     TimeBlock,
 )
 from core.recurring import build_rrule, parse_rrule
+from core.reviews import WEEKLY_PHASES
 from core.tagging import extract_tags, sync_tags_from_text
 
 _TEST_FERNET_KEY = Fernet.generate_key().decode()
@@ -1454,3 +1457,329 @@ class RenewChannelsAndSyncCommandTests(TestCase):
         credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
         call_command("sync_gcal")
         mock_sync.assert_called_once_with(credential)
+
+
+class ReviewSetupTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_onboarding_banner_shows_until_all_four_configured(self):
+        response = self.client.get(reverse("review_dashboard"))
+        self.assertContains(response, "Set up all four review cadences")
+        ReviewConfig.objects.create(cadence="weekly")
+        ReviewConfig.objects.create(cadence="monthly")
+        ReviewConfig.objects.create(cadence="quarterly")
+        ReviewConfig.objects.create(cadence="yearly")
+        response = self.client.get(reverse("review_dashboard"))
+        self.assertNotContains(response, "Set up all four review cadences")
+
+    def test_config_save_creates_config(self):
+        self.client.post(
+            reverse("review_config_save", args=["weekly"]),
+            {"weekday": "4", "time": "16:00", "duration_min": "60"},
+        )
+        config = ReviewConfig.objects.get(cadence="weekly")
+        self.assertEqual(config.weekday, 4)
+        self.assertEqual(config.duration_min, 60)
+
+    @gcal_settings
+    @patch("core.reviews.GoogleCalendarClient.insert_event")
+    def test_config_save_creates_gcal_event_when_connected(self, mock_insert):
+        GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        mock_insert.return_value = {"id": "review-evt-1"}
+        self.client.post(
+            reverse("review_config_save", args=["weekly"]),
+            {"weekday": "4", "time": "16:00", "duration_min": "60"},
+        )
+        config = ReviewConfig.objects.get(cadence="weekly")
+        self.assertEqual(config.gcal_event_id, "review-evt-1")
+        body = mock_insert.call_args.args[1]
+        self.assertIn("RRULE:FREQ=WEEKLY", body["recurrence"][0])
+
+    @gcal_settings
+    @patch("core.reviews.GoogleCalendarClient.delete_event")
+    def test_config_delete_removes_gcal_event(self, mock_delete):
+        GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        ReviewConfig.objects.create(cadence="weekly", gcal_event_id="review-evt-1")
+        self.client.post(reverse("review_config_delete", args=["weekly"]))
+        mock_delete.assert_called_once_with("cal1", "review-evt-1")
+        self.assertFalse(ReviewConfig.objects.filter(cadence="weekly").exists())
+
+
+class WeeklyWizardResumeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_start_creates_session_at_first_phase(self):
+        response = self.client.get(reverse("review_weekly_start"))
+        self.assertRedirects(response, reverse("review_weekly_phase", args=["get_clear"]))
+        session = ReviewSession.objects.get(cadence="weekly")
+        self.assertEqual(session.phase_state["phase"], "get_clear")
+
+    def test_visiting_wrong_phase_redirects_to_current(self):
+        self.client.get(reverse("review_weekly_start"))
+        response = self.client.get(reverse("review_weekly_phase", args=["creative"]))
+        self.assertRedirects(response, reverse("review_weekly_phase", args=["get_clear"]))
+
+    def test_advancing_persists_and_resumes(self):
+        self.client.get(reverse("review_weekly_start"))
+        self.client.post(reverse("review_weekly_phase", args=["get_clear"]), {"next": "1"})
+        session = ReviewSession.objects.get(cadence="weekly")
+        self.assertEqual(session.phase_state["phase"], "projects")
+        # A fresh "start" call resumes at the same phase rather than restarting.
+        response = self.client.get(reverse("review_weekly_start"))
+        self.assertRedirects(response, reverse("review_weekly_phase", args=["projects"]))
+
+    def test_mind_sweep_captures_to_inbox_without_advancing(self):
+        self.client.get(reverse("review_weekly_start"))
+        self.client.post(reverse("review_weekly_phase", args=["get_clear"]), {"mind_sweep": "Buy milk\nCall dentist"})
+        self.assertEqual(InboxItem.objects.filter(source="review").count(), 2)
+        session = ReviewSession.objects.get(cadence="weekly")
+        self.assertEqual(session.phase_state["phase"], "get_clear")
+
+
+class WeeklyCarryoverGateTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.client.get(reverse("review_weekly_start"))
+        session = ReviewSession.objects.get(cadence="weekly")
+        session.phase_state = {"phase": "carryover"}
+        session.save()
+
+    def test_cannot_advance_past_unresolved_carryover(self):
+        Task.objects.create(title="Stale", carried_over_count=3)
+        self.client.post(reverse("review_weekly_phase", args=["carryover"]), {"next": "1"})
+        session = ReviewSession.objects.get(cadence="weekly")
+        self.assertEqual(session.phase_state["phase"], "carryover")
+
+    def test_can_advance_once_all_resolved(self):
+        self.client.post(reverse("review_weekly_phase", args=["carryover"]), {"next": "1"})
+        session = ReviewSession.objects.get(cadence="weekly")
+        self.assertEqual(session.phase_state["phase"], "waiting")
+
+    def test_keep_resets_counter_and_shows_next_item(self):
+        first = Task.objects.create(title="A", carried_over_count=2, sort_order=1)
+        Task.objects.create(title="B", carried_over_count=1, sort_order=2)
+        self.client.post(reverse("review_carryover_resolve", args=[first.id, "keep"]))
+        first.refresh_from_db()
+        self.assertEqual(first.carried_over_count, 0)
+        response = self.client.get(reverse("review_weekly_phase", args=["carryover"]))
+        self.assertContains(response, "B")
+
+    def test_demote_sets_anytime_horizon(self):
+        task = Task.objects.create(title="A", carried_over_count=2, horizon=Task.Horizon.WEEK)
+        self.client.post(reverse("review_carryover_resolve", args=[task.id, "demote"]))
+        task.refresh_from_db()
+        self.assertEqual(task.horizon, Task.Horizon.ANYTIME)
+        self.assertEqual(task.carried_over_count, 0)
+
+    def test_someday_and_trash_actions(self):
+        someday_task = Task.objects.create(title="A", carried_over_count=1)
+        trash_task = Task.objects.create(title="B", carried_over_count=1)
+        self.client.post(reverse("review_carryover_resolve", args=[someday_task.id, "someday"]))
+        self.client.post(reverse("review_carryover_resolve", args=[trash_task.id, "trash"]))
+        someday_task.refresh_from_db()
+        trash_task.refresh_from_db()
+        self.assertEqual(someday_task.list, Task.List.SOMEDAY)
+        self.assertEqual(trash_task.list, Task.List.TRASH)
+        self.assertIsNotNone(trash_task.trashed_at)
+
+
+class EisenhowerDropTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.project = Task.objects.create(title="Redesign site", is_project=True)
+        self.next_task = Task.objects.create(
+            title="Draft mockup", parent=self.project, is_next_action=True
+        )
+
+    def test_q1_shows_commitment_when_due_soon(self):
+        self.next_task.due_date = date.today()
+        self.next_task.save(update_fields=["due_date"])
+        response = self.client.post(reverse("review_eisenhower_drop", args=[self.project.id, "q1"]))
+        self.assertContains(response, "already committed")
+
+    def test_q1_prompts_when_no_commitment(self):
+        response = self.client.post(reverse("review_eisenhower_drop", args=[self.project.id, "q1"]))
+        self.assertContains(response, "Add a due date")
+
+    def test_q2_shows_slot_picker_then_schedules(self):
+        response = self.client.post(reverse("review_eisenhower_drop", args=[self.project.id, "q2"]))
+        self.assertContains(response, "slot_start")
+        response = self.client.post(
+            reverse("review_eisenhower_drop", args=[self.project.id, "q2"]),
+            {"slot_start": "2026-07-20T09:00"},
+        )
+        self.assertContains(response, "scheduled")
+        self.next_task.refresh_from_db()
+        self.assertIsNotNone(self.next_task.q2_week)
+        self.assertTrue(TimeBlock.objects.filter(task=self.next_task).exists())
+
+    def test_q3_shows_choice_then_delegates(self):
+        response = self.client.post(reverse("review_eisenhower_drop", args=[self.project.id, "q3"]))
+        self.assertContains(response, "Delegate")
+        self.client.post(
+            reverse("review_eisenhower_drop", args=[self.project.id, "q3"]),
+            {"action": "waiting", "waiting_on": "Design team"},
+        )
+        self.next_task.refresh_from_db()
+        self.assertEqual(self.next_task.list, Task.List.WAITING)
+        self.assertEqual(self.next_task.waiting_on, "Design team")
+
+    def test_q3_someday_action_parks_whole_project(self):
+        self.client.post(
+            reverse("review_eisenhower_drop", args=[self.project.id, "q3"]), {"action": "someday"}
+        )
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.list, Task.List.SOMEDAY)
+
+    def test_q4_shows_choice_then_trashes(self):
+        response = self.client.post(reverse("review_eisenhower_drop", args=[self.project.id, "q4"]))
+        self.assertContains(response, "Trash")
+        self.client.post(
+            reverse("review_eisenhower_drop", args=[self.project.id, "q4"]), {"action": "trash"}
+        )
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.list, Task.List.TRASH)
+        self.assertIsNotNone(self.project.trashed_at)
+
+    def test_q4_someday_action(self):
+        self.client.post(
+            reverse("review_eisenhower_drop", args=[self.project.id, "q4"]), {"action": "someday"}
+        )
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.list, Task.List.SOMEDAY)
+
+
+class Big3AndFinishTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.client.get(reverse("review_weekly_start"))
+        session = ReviewSession.objects.get(cadence="weekly")
+        session.phase_state = {"phase": "creative"}
+        session.save()
+
+    def test_big3_auto_clears_previous_stars(self):
+        old_star = Task.objects.create(title="Old star", big3=True)
+        new_pick = Task.objects.create(title="New pick")
+        self.client.post(reverse("review_weekly_phase", args=["creative"]), {"set_big3": "1", "big3": [new_pick.id]})
+        old_star.refresh_from_db()
+        new_pick.refresh_from_db()
+        self.assertFalse(old_star.big3)
+        self.assertTrue(new_pick.big3)
+
+    def test_big3_capped_at_three(self):
+        tasks = [Task.objects.create(title=f"T{i}") for i in range(5)]
+        self.client.post(
+            reverse("review_weekly_phase", args=["creative"]),
+            {"set_big3": "1", "big3": [t.id for t in tasks]},
+        )
+        self.assertEqual(Task.objects.filter(big3=True).count(), 3)
+
+    def test_capture_box_creates_inbox_items(self):
+        self.client.post(reverse("review_weekly_phase", args=["creative"]), {"capture": "New idea\nAnother one"})
+        self.assertEqual(InboxItem.objects.filter(source="review").count(), 2)
+
+    def test_finish_sets_completed_at_and_streak(self):
+        response = self.client.post(reverse("review_weekly_phase", args=["creative"]), {"finish": "1"})
+        session = ReviewSession.objects.get(cadence="weekly")
+        self.assertIsNotNone(session.completed_at)
+        self.assertEqual(session.stats_snapshot["streak"], 1)
+        self.assertContains(response, "1")
+
+    def test_streak_increments_across_sessions(self):
+        self.client.post(reverse("review_weekly_phase", args=["creative"]), {"finish": "1"})
+        self.client.get(reverse("review_weekly_start"))
+        session2 = ReviewSession.objects.filter(cadence="weekly", completed_at__isnull=True).get()
+        session2.phase_state = {"phase": "creative"}
+        session2.save()
+        self.client.post(reverse("review_weekly_phase", args=["creative"]), {"finish": "1"})
+        session2.refresh_from_db()
+        self.assertEqual(session2.stats_snapshot["streak"], 2)
+
+
+class MonthlyAndSimpleWizardTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_monthly_wizard_resume_and_finish(self):
+        response = self.client.get(reverse("review_monthly_start"))
+        self.assertRedirects(response, reverse("review_monthly_phase", args=["areas"]))
+        self.client.post(reverse("review_monthly_phase", args=["areas"]), {"next": "1"})
+        self.client.post(reverse("review_monthly_phase", args=["someday"]), {"next": "1"})
+        response = self.client.post(reverse("review_monthly_phase", args=["carryover"]), {"finish": "1"})
+        session = ReviewSession.objects.get(cadence="monthly")
+        self.assertIsNotNone(session.completed_at)
+        self.assertContains(response, "1")
+
+    def test_quarterly_checklist_finish(self):
+        self.client.get(reverse("review_simple_start", args=["quarterly"]))
+        response = self.client.post(reverse("review_simple_phase", args=["quarterly", "checklist"]), {"finish": "1"})
+        session = ReviewSession.objects.get(cadence="quarterly")
+        self.assertIsNotNone(session.completed_at)
+        self.assertContains(response, "1")
+
+    def test_yearly_checklist_capture(self):
+        self.client.get(reverse("review_simple_start", args=["yearly"]))
+        self.client.post(reverse("review_simple_phase", args=["yearly", "checklist"]), {"capture": "Big vision idea"})
+        self.assertEqual(InboxItem.objects.filter(source="review").count(), 1)
+
+
+class TrustStripAndTodayBannerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_never_reviewed_shows_never(self):
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, "review never")
+
+    def test_overdue_review_shows_red_banner_on_today(self):
+        # timedelta(days=12) at time-of-day X can land on a 12- or 13-day-old
+        # *date* depending on the clock when the test runs (date subtraction,
+        # not exact 24h periods) - go safely past the >10 threshold instead
+        # of asserting an exact day count.
+        ReviewSession.objects.create(
+            cadence="weekly", completed_at=timezone.now() - timedelta(days=15)
+        )
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, "Your system is only trusted if it's current.")
+
+    def test_recent_review_does_not_show_banner(self):
+        ReviewSession.objects.create(cadence="weekly", completed_at=timezone.now() - timedelta(days=2))
+        response = self.client.get(reverse("today"))
+        self.assertNotContains(response, "Your system is only trusted")
+
+
+class ReviewScreenSmokeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_dashboard_and_all_wizard_entry_points_render(self):
+        response = self.client.get(reverse("review_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        for name in ("review_weekly_start", "review_monthly_start"):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 302)
+        for cadence in ("quarterly", "yearly"):
+            response = self.client.get(reverse("review_simple_start", args=[cadence]))
+            self.assertEqual(response.status_code, 302)
+
+    def test_every_weekly_phase_renders(self):
+        Task.objects.create(title="A project", is_project=True)
+        for phase in WEEKLY_PHASES:
+            session = ReviewSession.objects.filter(cadence="weekly", completed_at__isnull=True).first()
+            if not session:
+                self.client.get(reverse("review_weekly_start"))
+                session = ReviewSession.objects.get(cadence="weekly")
+            session.phase_state = {"phase": phase}
+            session.save()
+            response = self.client.get(reverse("review_weekly_phase", args=[phase]))
+            self.assertEqual(response.status_code, 200, phase)

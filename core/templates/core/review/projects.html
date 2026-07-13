@@ -1,0 +1,24 @@
+{% extends "components/review_wizard_base.html" %}
+{% load gtd_extras %}
+{% block wizard_label %}Get Current · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Projects checklist{% endblock %}
+{% block wizard_helper %}Every 🟡/🔴 project needs a resolving action - add a next task, flag one, mark it done, or park it.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-2 mb-4 max-h-96 overflow-y-auto">
+  {% for row in rows %}
+    <div class="flex items-center justify-between gap-2 py-2 px-2 border border-line rounded-md">
+      <a href="{% url 'project_detail' row.project.id %}" class="text-sm truncate hover:text-water">{{ row.project.title }}</a>
+      <div class="flex items-center gap-2 shrink-0">
+        {% if row.badge %}{% badge row.badge %}{% else %}<span class="text-xs text-ink-soft">healthy</span>{% endif %}
+        {% if row.badge %}<a href="{% url 'project_detail' row.project.id %}" class="text-water hover:underline text-xs">Resolve →</a>{% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-ink-soft text-sm py-4 text-center">No active projects.</p>
+  {% endfor %}
+</div>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Continue →</button>
+</form>
+{% endblock %}

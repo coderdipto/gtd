@@ -1,0 +1,24 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Get Current · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Waiting For - overdue follow-ups{% endblock %}
+{% block wizard_helper %}Nudge, mark got it, or drop.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-2 mb-4 max-h-96 overflow-y-auto">
+  {% for task in overdue %}
+    <div id="review-waiting-{{ task.id }}" class="flex items-center justify-between gap-2 py-2 px-2 border border-line rounded-md">
+      <span class="text-sm truncate">{{ task.title }} <span class="text-ink-soft text-xs">— {{ task.waiting_on }}</span></span>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" hx-post="{% url 'waiting_nudge' task.id %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="h-8 px-2 rounded-md border border-line text-xs">Nudged</button>
+        <button type="button" hx-post="{% url 'waiting_got_it' task.id %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="h-8 px-2 rounded-md border border-line text-xs">Got it</button>
+        <button type="button" hx-post="{% url 'task_move' task.id 'trash' %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="h-8 px-2 rounded-md text-red text-xs">Drop</button>
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-ink-soft text-sm py-4 text-center">Nothing overdue.</p>
+  {% endfor %}
+</div>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Continue →</button>
+</form>
+{% endblock %}

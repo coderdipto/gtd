@@ -1,0 +1,46 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Get Creative · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Someday, free capture, and your Big 3{% endblock %}
+{% block wizard_helper %}Activate anything ready, capture whatever's floating, then pick up to 3 stars for the week ahead.{% endblock %}
+{% block wizard_body %}
+<div class="mb-4">
+  <p class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Someday</p>
+  <div class="space-y-1 max-h-40 overflow-y-auto">
+    {% for task in someday_tasks %}
+      <div id="review-someday-{{ task.id }}" class="flex items-center justify-between text-sm py-1">
+        <span>{{ task.title }}</span>
+        <button type="button" hx-post="{% url 'someday_activate' task.id %}" hx-target="#review-someday-{{ task.id }}" hx-swap="outerHTML"
+                class="h-7 px-2 rounded-md border border-line text-xs">Activate</button>
+      </div>
+    {% empty %}
+      <p class="text-ink-soft text-sm">Nothing parked.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <label class="block text-xs text-ink-soft mb-1">Anything else on your mind?</label>
+  <textarea name="capture" rows="3" class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none mb-2"></textarea>
+  <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Capture to inbox</button>
+</form>
+
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <p class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Big 3 - pick up to 3</p>
+  <div class="space-y-1 max-h-48 overflow-y-auto mb-2">
+    {% for task in candidates %}
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="big3" value="{{ task.id }}" {% if task.big3 %}checked{% endif %}>
+        {{ task.title }}
+      </label>
+    {% endfor %}
+  </div>
+  <button type="submit" name="set_big3" value="1" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Save Big 3</button>
+</form>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="finish" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Finish review →</button>
+</form>
+{% endblock %}

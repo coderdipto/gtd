@@ -1,0 +1,27 @@
+{% extends "components/review_wizard_base.html" %}
+{% block wizard_label %}Get Clear · {{ step }} of {{ total }}{% endblock %}
+{% block wizard_heading %}Get to inbox zero{% endblock %}
+{% block wizard_helper %}Process every inbox item, or explicitly skip if you already know what's in there.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between bg-paper border border-line rounded-md p-3">
+    <span class="text-sm">Inbox: <span class="font-mono">{{ inbox_count }}</span> unprocessed</span>
+    <a href="{% url 'inbox_process' %}" class="text-water hover:underline text-sm">Process inbox →</a>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <label class="block text-xs text-ink-soft mb-1">Mind sweep - one thing per line</label>
+    <textarea name="mind_sweep" rows="4" placeholder="Anything on your mind..."
+              class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none mb-2"></textarea>
+    <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Capture to inbox</button>
+  </form>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" name="next" value="1" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">
+      {% if inbox_count %}Skip, I know what's there →{% else %}Continue →{% endif %}
+    </button>
+  </form>
+</div>
+{% endblock %}
