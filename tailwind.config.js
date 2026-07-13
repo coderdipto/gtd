@@ -3,6 +3,7 @@ module.exports = {
   content: [
     "./templates/**/*.html",
     "./core/templates/**/*.html",
+    "./core/templatetags/**/*.py",
   ],
   theme: {
     extend: {

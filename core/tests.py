@@ -1,14 +1,15 @@
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import CaptureToken, InboxItem, Note, Tag, Task
+from core.models import Area, CaptureToken, InboxItem, Note, RecurringTemplate, Tag, Task, TimeBlock
 from core.tagging import extract_tags, sync_tags_from_text
 
 
@@ -391,3 +392,294 @@ class ClarifyWizardTests(TestCase):
         self.client.post(reverse("clarify_trash", args=[first.id]))
         response = self.client.get(reverse("clarify_actionable", args=[second.id]))
         self.assertContains(response, "2 / 2")
+
+
+class TodayViewCompositionTests(TestCase):
+    """The four inclusion rules from solution-plan.md Step 5."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.today = timezone.localtime().date()
+
+    def test_horizon_today_included(self):
+        t = Task.objects.create(title="Horizon today", horizon=Task.Horizon.TODAY)
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, t.title)
+
+    def test_task_with_timeblock_today_included(self):
+        t = Task.objects.create(title="Blocked today", horizon=Task.Horizon.ANYTIME)
+        TimeBlock.objects.create(
+            task=t,
+            start=timezone.now().replace(hour=14, minute=0),
+            end=timezone.now().replace(hour=15, minute=0),
+        )
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, t.title)
+
+    def test_due_today_and_overdue_included(self):
+        due_today = Task.objects.create(title="Due today", horizon=Task.Horizon.ANYTIME, due_date=self.today)
+        overdue = Task.objects.create(
+            title="Overdue task", horizon=Task.Horizon.ANYTIME, due_date=self.today - timedelta(days=3)
+        )
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, due_today.title)
+        self.assertContains(response, overdue.title)
+
+    def test_overdue_recurring_instance_included(self):
+        template = RecurringTemplate.objects.create(title="Weekly thing", rrule="FREQ=WEEKLY")
+        instance = Task.objects.create(
+            title="Recurring instance",
+            horizon=Task.Horizon.ANYTIME,
+            recurring_template=template,
+            occurrence_date=self.today - timedelta(days=1),
+        )
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, instance.title)
+
+    def test_anytime_task_not_in_curated_but_in_anytime_section(self):
+        t = Task.objects.create(title="Plain anytime task", horizon=Task.Horizon.ANYTIME)
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, t.title)
+        self.assertNotIn(t.id, [c.id for c in response.context["curated"]])
+        self.assertIn(t.id, [a.id for a in response.context["anytime"]])
+
+    def test_project_shells_excluded_from_today(self):
+        Task.objects.create(title="A project", is_project=True, horizon=Task.Horizon.TODAY)
+        response = self.client.get(reverse("today"))
+        self.assertEqual(len(response.context["curated"]), 0)
+
+
+class ReorderPersistenceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.a = Task.objects.create(title="A", sort_order=100)
+        self.b = Task.objects.create(title="B", sort_order=200)
+        self.c = Task.objects.create(title="C", sort_order=300)
+
+    def test_reorder_moves_task_after_specified_sibling(self):
+        # Drag C to sit right after A (i.e. new order A, C, B).
+        self.client.post(reverse("task_reorder", args=[self.c.id]), {"after": self.a.id})
+        self.a.refresh_from_db()
+        self.b.refresh_from_db()
+        self.c.refresh_from_db()
+        self.assertTrue(self.a.sort_order < self.c.sort_order < self.b.sort_order)
+
+    def test_reorder_to_front_when_no_after_given(self):
+        self.client.post(reverse("task_reorder", args=[self.c.id]), {})
+        self.a.refresh_from_db()
+        self.c.refresh_from_db()
+        self.assertTrue(self.c.sort_order < self.a.sort_order)
+
+    def test_reorder_scoped_to_same_parent_and_list(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        sub = Task.objects.create(title="Sub", parent=project, sort_order=100)
+        # Reordering a top-level task must never touch a subtask's sort_order.
+        self.client.post(reverse("task_reorder", args=[self.c.id]), {"after": self.a.id})
+        sub.refresh_from_db()
+        self.assertEqual(sub.sort_order, 100)
+
+
+class RolloverCommandTests(TestCase):
+    def test_today_horizon_always_carried_over(self):
+        t = Task.objects.create(title="T", horizon=Task.Horizon.TODAY)
+        call_command("rollover", "--as-of", "2026-07-15")  # a Wednesday
+        t.refresh_from_db()
+        self.assertEqual(t.carried_over_count, 1)
+
+    def test_week_horizon_only_carried_over_on_monday(self):
+        t = Task.objects.create(title="W", horizon=Task.Horizon.WEEK)
+        call_command("rollover", "--as-of", "2026-07-15")  # Wednesday - not Monday
+        t.refresh_from_db()
+        self.assertEqual(t.carried_over_count, 0)
+
+        call_command("rollover", "--as-of", "2026-07-13")  # a Monday
+        t.refresh_from_db()
+        self.assertEqual(t.carried_over_count, 1)
+
+    def test_month_horizon_only_carried_over_on_first(self):
+        t = Task.objects.create(title="M", horizon=Task.Horizon.MONTH)
+        call_command("rollover", "--as-of", "2026-07-15")
+        t.refresh_from_db()
+        self.assertEqual(t.carried_over_count, 0)
+
+        call_command("rollover", "--as-of", "2026-08-01")
+        t.refresh_from_db()
+        self.assertEqual(t.carried_over_count, 1)
+
+    def test_completed_tasks_never_carried_over(self):
+        t = Task.objects.create(title="Done", horizon=Task.Horizon.TODAY, completed_at=timezone.now())
+        call_command("rollover", "--as-of", "2026-07-15")
+        t.refresh_from_db()
+        self.assertEqual(t.carried_over_count, 0)
+
+
+class TagMergeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.source = Tag.objects.create(name="errand")
+        self.target = Tag.objects.create(name="errands")
+        self.task = Task.objects.create(title="Buy milk")
+        self.task.tags.add(self.source)
+        self.note = Note.objects.create(title="Shop list")
+        self.note.tags.add(self.source)
+
+    def test_merge_repoints_tasks_and_notes_and_deletes_source(self):
+        self.client.post(reverse("tag_merge", args=[self.source.id]), {"target": self.target.id})
+        self.assertFalse(Tag.objects.filter(id=self.source.id).exists())
+        self.assertIn(self.target, self.task.tags.all())
+        self.assertIn(self.target, self.note.tags.all())
+
+    def test_merge_into_self_is_a_no_op_and_keeps_the_tag(self):
+        self.client.post(reverse("tag_merge", args=[self.source.id]), {"target": self.source.id})
+        self.assertTrue(Tag.objects.filter(id=self.source.id).exists())
+
+
+class ProjectViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_project_with_no_subtasks_shows_stalled_badge(self):
+        project = Task.objects.create(title="Empty project", is_project=True)
+        response = self.client.get(reverse("projects"))
+        self.assertContains(response, "stalled?")
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertContains(response, "No next action")
+
+    def test_project_with_unflagged_subtasks_shows_no_next_badge(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        Task.objects.create(title="Sub", parent=project)
+        response = self.client.get(reverse("projects"))
+        self.assertContains(response, "no next")
+
+    def test_project_with_flagged_subtask_shows_no_stall_badge(self):
+        project = Task.objects.create(title="Healthy project", is_project=True)
+        Task.objects.create(title="Sub", parent=project, is_next_action=True)
+        response = self.client.get(reverse("projects"))
+        self.assertNotContains(response, "stalled?")
+        self.assertNotContains(response, "no next")
+
+    def test_add_subtask_auto_flags_first_one_only(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        self.client.post(reverse("project_add_subtask", args=[project.id]), {"title": "First"})
+        self.client.post(reverse("project_add_subtask", args=[project.id]), {"title": "Second"})
+        subs = list(project.subtasks.order_by("sort_order"))
+        self.assertTrue(subs[0].is_next_action)
+        self.assertFalse(subs[1].is_next_action)
+
+    def test_flag_next_toggle(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        sub = Task.objects.create(title="Sub", parent=project)
+        self.client.post(reverse("project_flag_next", args=[project.id, sub.id]))
+        sub.refresh_from_db()
+        self.assertTrue(sub.is_next_action)
+        self.client.post(reverse("project_flag_next", args=[project.id, sub.id]))
+        sub.refresh_from_db()
+        self.assertFalse(sub.is_next_action)
+
+
+class WaitingSomedayTrashTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_waiting_got_it_moves_to_next(self):
+        t = Task.objects.create(title="Waiting task", list=Task.List.WAITING, waiting_since=date.today())
+        self.client.post(reverse("waiting_got_it", args=[t.id]))
+        t.refresh_from_db()
+        self.assertEqual(t.list, Task.List.NEXT)
+        self.assertIsNone(t.waiting_since)
+
+    def test_waiting_nudge_resets_waiting_since(self):
+        t = Task.objects.create(
+            title="Waiting task", list=Task.List.WAITING, waiting_since=date.today() - timedelta(days=10)
+        )
+        self.client.post(reverse("waiting_nudge", args=[t.id]))
+        t.refresh_from_db()
+        self.assertEqual(t.waiting_since, date.today())
+
+    def test_someday_activate_moves_to_next(self):
+        t = Task.objects.create(title="Someday task", list=Task.List.SOMEDAY)
+        self.client.post(reverse("someday_activate", args=[t.id]))
+        t.refresh_from_db()
+        self.assertEqual(t.list, Task.List.NEXT)
+
+    def test_trash_restore(self):
+        t = Task.objects.create(title="Trashed", list=Task.List.TRASH, trashed_at=timezone.now())
+        self.client.post(reverse("task_restore", args=[t.id]))
+        t.refresh_from_db()
+        self.assertEqual(t.list, Task.List.NEXT)
+        self.assertIsNone(t.trashed_at)
+
+    def test_trash_row_hides_complete_circle(self):
+        # Regression: task_row.html used `show_complete|default:True`, and
+        # Django's `default` filter treats False as "unset" and substitutes
+        # the default - silently turning an explicit show_complete=False
+        # back into True. Trash rows must not render a complete button.
+        Task.objects.create(title="Trashed", list=Task.List.TRASH, trashed_at=timezone.now())
+        response = self.client.get(reverse("trash"))
+        self.assertNotContains(response, 'aria-label="Complete"')
+
+    def test_trash_purge_deletes_permanently(self):
+        t = Task.objects.create(title="Trashed", list=Task.List.TRASH, trashed_at=timezone.now())
+        self.client.post(reverse("task_purge", args=[t.id]))
+        self.assertFalse(Task.objects.filter(id=t.id).exists())
+
+    def test_task_move_to_trash_sets_trashed_at(self):
+        t = Task.objects.create(title="Task")
+        self.client.post(reverse("task_move", args=[t.id, "trash"]))
+        t.refresh_from_db()
+        self.assertEqual(t.list, Task.List.TRASH)
+        self.assertIsNotNone(t.trashed_at)
+
+    def test_task_complete_and_reopen(self):
+        t = Task.objects.create(title="Task")
+        self.client.post(reverse("task_complete", args=[t.id]))
+        t.refresh_from_db()
+        self.assertIsNotNone(t.completed_at)
+        self.client.post(reverse("task_reopen", args=[t.id]))
+        t.refresh_from_db()
+        self.assertIsNone(t.completed_at)
+
+    def test_project_complete_blocked_without_force(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        Task.objects.create(title="Sub", parent=project)
+        response = self.client.post(reverse("task_complete", args=[project.id]))
+        self.assertEqual(response.status_code, 409)
+        project.refresh_from_db()
+        self.assertIsNone(project.completed_at)
+
+
+class ScreenRenderSmokeTests(TestCase):
+    """Every new Epic 5 screen renders without error, empty or populated."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_all_screens_render_empty(self):
+        for name in ("today", "week", "month", "tasks", "projects", "waiting", "someday", "trash", "tags"):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200, name)
+
+    def test_all_screens_render_populated(self):
+        area = Area.objects.create(name="Home")
+        tag = Tag.objects.create(name="errand", is_context=True)
+        task = Task.objects.create(title="A next action", area=area, due_date=date.today())
+        task.tags.add(tag)
+        Task.objects.create(title="Waiting on someone", list=Task.List.WAITING, waiting_since=date.today())
+        Task.objects.create(title="Someday maybe", list=Task.List.SOMEDAY)
+        Task.objects.create(title="Trashed thing", list=Task.List.TRASH, trashed_at=timezone.now())
+        project = Task.objects.create(title="A project", is_project=True)
+        Task.objects.create(title="A subtask", parent=project, is_next_action=True)
+
+        for name in ("today", "week", "month", "tasks", "projects", "waiting", "someday", "trash", "tags"):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200, name)
+
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A subtask")

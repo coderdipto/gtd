@@ -93,20 +93,20 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 5 — Lists, projects, contexts, ordering, horizons (M1)
 
-- [ ] `/today`: curated section (horizon=today + today's TimeBlocks + due today/overdue + overdue recurring instances) with Big-3 pinned first, missed-block strip, block-time-then-manual ordering; collapsible "Anytime — pick from here" with context filter chips and "→ Today" quick action; Q2-chip violet left border.
-- [ ] `/week`, `/month`: same composition pattern against `this_week`/`this_month` + due window.
-- [ ] `/tasks` (Next Actions): all `list=NEXT` non-project tasks, subtasks shown here AND under their project; filters (context, tag, horizon, area, "next actions only").
-- [ ] `/projects`: cards with progress bar, next-action line, `stalled?`/`no next →` badges; project detail (description, drag-reorder subtask list, flag-as-next toggle, calendar allocation panel stub for Step 8, inline add-subtask); stalled banner per `design.md` copy §9.
-- [ ] `/waiting`: sorted by `waiting_since`, overdue-follow-up tinted rows, *Got it*/*Nudge sent* actions.
-- [ ] `/someday`: Activate → NEXT.
-- [ ] Trash view: restore / purge now, 30-day auto-purge note.
-- [ ] `task_row.html` component per `design.md` §4 (complete-circle HTMX PATCH + 150ms fade, next-action dot markers, project folder+progress pill, ⋮ menu).
-- [ ] SortableJS drag handles on every list → HTMX PATCH `/tasks/<id>/reorder/`; server rewrites `sort_order` in steps of 100, renumber on collision.
-- [ ] `rollover` cron logic (nightly): `this_week` carry-over Monday 00:05, `this_month` on the 1st, `today` daily; `carried_over_count += 1`; "↩ ×N" badge. (Cron *registration* is Step 12; the command logic belongs here.)
-- [ ] `/tags` manager: usage counts, context toggle, slug-safe rename, merge (re-point M2M + delete source), delete with confirm; >7-context nag banner (`design.md` §9 copy).
-- [ ] `badge.html`, `chip.html`, `filter_bar.html`, `empty_state.html` components per `design.md` §4.
-- [ ] **Test:** Today view composition (all four inclusion rules), reorder persistence, carry-over cron on synthetic dates, tag-merge correctness.
-- [ ] **Rollback:** each view independent; disable route.
+- [x] `/today`: curated section (horizon=today + today's TimeBlocks + due today/overdue + overdue recurring instances) with Big-3 pinned first, missed-block strip, block-time-then-manual ordering; collapsible "Anytime — pick from here" with context filter chips and "→ Today" quick action; Q2-chip violet left border. Missed-block strip's "Reschedule" link currently points at the `calendar_page` stub (real rescheduling is Epic 8).
+- [x] `/week`, `/month`: same composition pattern (horizon match OR due within the remaining week/month window) — no Anytime sub-section on these two, matching `design.md`'s Key Screens section (only Today documents one).
+- [x] `/tasks` (Next Actions): all `list=NEXT` non-project tasks, subtasks shown here AND under their project; filters (context, tag, horizon, area, "next actions only" — computed by grouping subtasks per project and calling `next_actions()` once per project, not per row).
+- [x] `/projects`: cards with progress bar, next-action line, `stalled?`/`no next →` badges (`stalled?` = `NEEDS_ATTENTION` state, `no next →` = `implicit` state — see `core/projects.py::_project_state_badge`); project detail (description, drag-reorder subtask list, flag-as-next toggle via clickable marker dot, calendar allocation panel stub for Step 8, inline add-subtask); stalled banner per `design.md` copy §9. Plain task "Edit" and "Convert to note" (§4's ⋮ menu) are **not implemented** — deferred, no dedicated task-edit screen exists yet in any epic.
+- [x] `/waiting`: sorted by `waiting_since`, overdue-follow-up tinted rows (`bg-amber-bg/40`), *Got it*/*Nudge sent* actions.
+- [x] `/someday`: Activate → NEXT.
+- [x] Trash view: restore / purge now, 30-day auto-purge note.
+- [x] `task_row.html` component per `design.md` §4 (complete-circle HTMX PATCH + 150ms fade, next-action dot markers — clickable when `flag_url` passed, project folder+progress pill, ⋮ menu with Move-to-Someday/Waiting/Trash only — Edit/Block-time/Convert-to-note deferred, see above).
+- [x] SortableJS drag handles on every list → HTMX PATCH `/tasks/<id>/reorder/` (via `htmx.ajax()` from `static/js/sortable-lists.js`, listening on `htmx:load` since `hx-boost` means `DOMContentLoaded` only fires once); server rewrites `sort_order` in steps of 100, renumber on collision. Known limitation: `/tasks` mixes top-level tasks and subtasks from different projects in one visual drag container — reordering is still scoped correctly server-side (siblings = same `parent`+`is_project`+`list`), but dropping next to a task from a *different* group falls back to "insert at front of my own group" rather than a precise position, since SortableJS doesn't know about the sub-grouping. Project detail's subtask list doesn't have this problem (one homogeneous group).
+- [x] `rollover` cron logic (nightly): `this_week` carry-over Monday 00:05, `this_month` on the 1st, `today` daily; `carried_over_count += 1`; "↩ ×N" badge. `core/management/commands/rollover.py`, `--as-of YYYY-MM-DD` for synthetic-date testing. (Cron *registration* is Step 12; the command logic belongs here.)
+- [x] `/tags` manager: usage counts, context toggle, slug-safe rename, merge (re-point M2M + delete source), delete with confirm; >7-context nag banner (`design.md` §9 copy).
+- [x] `badge.html`, `chip.html`, `filter_bar.html`, `empty_state.html` components per `design.md` §4. Badge status→class strings live in `core/templatetags/gtd_extras.py` (Python, not a template) — `tailwind.config.js`'s `content` list had to add `./core/templatetags/**/*.py` so the compiler's scanner still sees those literal class tokens.
+- [x] **Test:** Today view composition (all four inclusion rules), reorder persistence (incl. cross-parent isolation), carry-over cron on synthetic dates (today/week/month + completed-task exclusion), tag-merge correctness (incl. merge-into-self no-op), project badge states, screen-render smoke tests (empty + populated) for every new screen. 31 new tests, 70/70 passing.
+- [x] **Rollback:** each view independent; disable route.
 
 ## Epic 6 — Notes (Reference) + search (M1)
 

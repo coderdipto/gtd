@@ -1,0 +1,15 @@
+{% comment %}
+Tag/context filter chip (docs/design.md §4). Expects `tag` (a Tag instance),
+`active` (bool), and `url` (link target that toggles this chip in the
+current filter set - caller builds it since each screen has its own filter
+query string).
+{% endcomment %}
+<a href="{{ url }}"
+   class="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono border shrink-0 focus-visible:ring-2 ring-water focus:outline-none
+   {% if active %}
+     {% if tag.is_context %}bg-water text-white border-water{% else %}bg-ink text-white border-ink{% endif %}
+   {% else %}
+     {% if tag.is_context %}bg-water-soft text-water border-water-soft hover:border-water{% else %}bg-line text-ink-soft border-line hover:border-ink{% endif %}
+   {% endif %}">
+  {{ tag }}
+</a>

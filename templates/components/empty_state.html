@@ -1,0 +1,16 @@
+{% comment %}
+docs/design.md §4: icon + one display-face line + one GTD-teaching body line +
+one primary action. Pass `icon` (path under templates/icons/, e.g. "icons/inbox.svg"),
+`heading`, `body`, and optionally `action_url`/`action_label`.
+{% endcomment %}
+<div class="flex flex-col items-center text-center py-16 px-4">
+  <div class="text-ink-soft mb-4">{% include icon %}</div>
+  <p class="font-display font-bold text-lg mb-1">{{ heading }}</p>
+  <p class="text-ink-soft text-sm max-w-xs mb-6">{{ body }}</p>
+  {% if action_url %}
+    <a href="{{ action_url }}"
+       class="h-11 px-4 inline-flex items-center rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">
+      {{ action_label }}
+    </a>
+  {% endif %}
+</div>

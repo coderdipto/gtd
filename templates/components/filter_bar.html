@@ -1,0 +1,26 @@
+{% comment %}
+docs/design.md §4: horizontal scrollable chip row - contexts, then tags, then
+horizon/area pills. `chips` is a list of {label, url, active, variant} built
+server-side (variant is "context"|"tag"|"plain"); `clear_url` is None when no
+filter is active.
+{% endcomment %}
+<div class="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+  {% for c in chips %}
+    <a href="{{ c.url }}"
+       class="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono border shrink-0 whitespace-nowrap focus-visible:ring-2 ring-water focus:outline-none
+       {% if c.active %}
+         {% if c.variant == 'context' %}bg-water text-white border-water
+         {% elif c.variant == 'tag' %}bg-ink text-white border-ink
+         {% else %}bg-water text-white border-water{% endif %}
+       {% else %}
+         {% if c.variant == 'context' %}bg-water-soft text-water border-water-soft hover:border-water
+         {% elif c.variant == 'tag' %}bg-line text-ink-soft border-line hover:border-ink
+         {% else %}bg-surface text-ink-soft border-line hover:border-water{% endif %}
+       {% endif %}">
+      {{ c.label }}
+    </a>
+  {% endfor %}
+  {% if clear_url %}
+    <a href="{{ clear_url }}" class="text-xs text-ink-soft hover:text-water underline shrink-0 whitespace-nowrap focus-visible:ring-2 ring-water focus:outline-none rounded-md">clear</a>
+  {% endif %}
+</div>

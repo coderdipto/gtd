@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}Waiting For · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-4">Waiting For</h1>
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for row in rows %}
+      {% include "components/task_row.html" with task=row.task waiting_days=row.waiting_days waiting_overdue=row.waiting_overdue primary_actions=row.primary_actions %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/calendar-check.svg" heading="Waiting on no one." body="Delegate something and track it here." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

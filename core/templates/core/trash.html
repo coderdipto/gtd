@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}Trash · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-1">Trash</h1>
+  <p class="text-ink-soft text-xs mb-4">Cleared after 30 days.</p>
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for task in tasks %}
+      {% include "components/task_row.html" with task=task show_complete=False primary_actions=actions|get_item:task.id %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/trash-2.svg" heading="Trash is empty." body="Anything you trash is auto-purged after 30 days." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

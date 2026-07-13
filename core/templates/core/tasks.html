@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}Next Actions · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-4">Next Actions</h1>
+  <div class="mb-4">{% include "components/filter_bar.html" %}</div>
+  <div class="divide-y divide-line border-t border-b border-line" data-sortable>
+    {% for task in tasks %}
+      {% include "components/task_row.html" with task=task meta=meta|get_item:task.id subtask_marker=markers|get_item:task.id sortable=True %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/circle-check.svg" heading="Nothing next." body="Capture something, then clarify it into your next action." action_url="/capture/" action_label="Capture" %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

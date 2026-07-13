@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}Projects · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-4">Projects</h1>
+  <div class="grid gap-3">
+    {% for project in projects %}
+      <a href="{% url 'project_detail' project.id %}"
+         class="block bg-surface border border-line rounded-md p-4 hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+        <div class="flex items-center justify-between gap-2 mb-1">
+          <p class="font-medium truncate">{{ project.title }}</p>
+          <div class="flex items-center gap-2 shrink-0">
+            {% badge "progress" text=project.progress_label %}
+            {% with b=badges|get_item:project.id %}{% if b %}{% badge b %}{% endif %}{% endwith %}
+          </div>
+        </div>
+        <p class="text-ink-soft text-sm truncate">{{ next_lines|get_item:project.id }}</p>
+        <div class="h-1 bg-line rounded-full mt-2 overflow-hidden">
+          <div class="h-1 bg-water" style="width: {{ project.progress_percent }}%"></div>
+        </div>
+      </a>
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/folder.svg" heading="No projects yet." body="Turn a multi-step outcome into a project from the clarify wizard." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

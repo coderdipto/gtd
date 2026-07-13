@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}This Week · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-4">This Week</h1>
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for task in tasks %}
+      {% include "components/task_row.html" with task=task meta=meta|get_item:task.id %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/circle-check.svg" heading="Nothing this week." body="Tasks land here once you set their horizon to This Week, or when they're due within it." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

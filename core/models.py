@@ -148,6 +148,32 @@ class Task(models.Model):
             return "implicit", [first]
         return self.NEEDS_ATTENTION, []
 
+    @property
+    def progress_label(self):
+        """'3/7' style subtask completion count, for the project progress pill."""
+        total = self.subtasks.count()
+        done = self.subtasks.filter(completed_at__isnull=False).count()
+        return f"{done}/{total}"
+
+    @property
+    def progress_percent(self):
+        total = self.subtasks.count()
+        if not total:
+            return 0
+        done = self.subtasks.filter(completed_at__isnull=False).count()
+        return round(100 * done / total)
+
+    @property
+    def q2_active(self):
+        """Whether the Q2 (important-not-urgent) chip is still valid this week -
+        it expires the Monday after it was set (Decision: transient, never persisted
+        as a stored priority - see CLAUDE.md 'Key domain rules')."""
+        if not self.q2_week:
+            return False
+        today = timezone.localtime().date()
+        current_monday = today - timedelta(days=today.weekday())
+        return self.q2_week == current_monday
+
     def complete(self, force=False):
         """Mark complete. Projects with incomplete subtasks require force=True
         (UI must prompt "Complete anyway? Subtasks will be completed too.").

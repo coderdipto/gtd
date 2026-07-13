@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Tags · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-4">Tags</h1>
+
+  {% if show_nag %}
+    <div class="mb-4 rounded-md border border-amber bg-amber-bg p-3 text-sm text-amber">
+      Too many contexts turns the system into a hobby. Merge some?
+    </div>
+  {% endif %}
+
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for tag in tags %}
+      <div class="flex items-center flex-wrap gap-3 py-3 px-1" x-data="{ renaming: false, merging: false }">
+        <span class="font-mono text-sm w-32 truncate {% if tag.is_context %}text-water{% else %}text-ink-soft{% endif %}">{{ tag }}</span>
+        <span class="text-xs text-ink-soft font-mono w-24 shrink-0">{{ tag.task_count }} tasks · {{ tag.note_count }} notes</span>
+
+        <form method="post" action="{% url 'tag_toggle_context' tag.id %}" class="shrink-0">
+          {% csrf_token %}
+          <button type="submit" class="h-7 px-2 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+            {% if tag.is_context %}@ context{% else %}# tag{% endif %} · toggle
+          </button>
+        </form>
+
+        <button type="button" @click="renaming = !renaming" class="h-7 px-2 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none shrink-0">Rename</button>
+        <button type="button" @click="merging = !merging" class="h-7 px-2 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none shrink-0">Merge into…</button>
+
+        <form method="post" action="{% url 'tag_delete' tag.id %}"
+              hx-confirm="Delete #{{ tag.name }}? This removes it from every task and note."
+              class="ml-auto shrink-0">
+          {% csrf_token %}
+          <button type="submit" class="h-7 px-2 rounded-md text-red text-xs hover:underline focus-visible:ring-2 ring-water focus:outline-none">Delete</button>
+        </form>
+
+        <div x-show="renaming" x-cloak class="basis-full order-1">
+          <form method="post" action="{% url 'tag_rename' tag.id %}" class="flex items-center gap-2 mt-2">
+            {% csrf_token %}
+            <input type="text" name="name" value="{{ tag.name }}" required
+                   class="h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+            <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Save</button>
+          </form>
+        </div>
+
+        <div x-show="merging" x-cloak class="basis-full order-1">
+          <form method="post" action="{% url 'tag_merge' tag.id %}" class="flex items-center gap-2 mt-2">
+            {% csrf_token %}
+            <select name="target" class="h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+              {% for other in tags %}
+                {% if other.id != tag.id %}<option value="{{ other.id }}">{{ other }}</option>{% endif %}
+              {% endfor %}
+            </select>
+            <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Merge</button>
+          </form>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-ink-soft text-sm py-6 text-center">No tags yet — they're created automatically from @context/#tag text.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

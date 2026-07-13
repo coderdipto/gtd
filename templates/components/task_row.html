@@ -1,0 +1,96 @@
+{% load gtd_extras %}
+{% comment %}
+docs/design.md §4 task_row.html. Context:
+  task            - a Task instance
+  subtask_marker  - None | "flagged" | "implicit" (next-action dot, subtasks only)
+  flag_url        - if set, the marker becomes a clickable button that POSTs here to
+                     toggle is_next_action (project detail's subtask list)
+  meta            - preformatted mono meta string (due/block time), or ""
+  primary_actions - list of {label, url, confirm} rendered as buttons before the ⋮ menu
+                    (Waiting/Someday/Trash screens' Got it / Activate / Restore / Purge etc.)
+  show_complete   - whether the complete-circle is shown (default true; false for Trash)
+  menu_moves      - list of {label, url} "Move to ..." options for the ⋮ menu
+  sortable        - if true, adds a drag handle + the data-* attrs static/js/sortable-lists.js
+                    needs to wire this row into its container's SortableJS instance
+{% endcomment %}
+<div id="task-row-{{ task.id }}"
+     {% if sortable %}data-task-id="{{ task.id }}" data-reorder-url="{% url 'task_reorder' task.id %}"{% endif %}
+     class="flex items-center gap-3 py-3 px-1 border-b border-line last:border-0 transition-opacity duration-150
+     {% if waiting_overdue %}bg-amber-bg/40{% endif %}
+     {% if task.q2_active %}border-l-2 border-l-violet{% endif %}">
+  {% if sortable %}
+    <span data-drag-handle class="shrink-0 cursor-grab text-ink-soft select-none" aria-hidden="true">⠿</span>
+  {% endif %}
+  {% if show_complete|default_if_none:True %}
+    <button type="button"
+            hx-post="{% url 'task_complete' task.id %}"
+            {% if task.is_project %}
+              hx-vals='{"force": "1"}'
+              hx-confirm="Complete anyway? Subtasks will be completed too."
+            {% endif %}
+            hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML swap:150ms"
+            aria-label="Complete"
+            class="shrink-0 w-5 h-5 rounded-full border-2 border-line hover:border-water hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none"></button>
+  {% endif %}
+
+  {% if subtask_marker or flag_url %}
+    {% if flag_url %}
+      <button type="button" aria-label="Toggle flagged next action"
+              hx-post="{{ flag_url }}" hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML"
+              title="{% if subtask_marker == 'flagged' %}Flagged next action - click to unflag{% else %}Click to flag as the next action{% endif %}"
+              class="shrink-0 w-2 h-2 rounded-full focus-visible:ring-2 ring-water focus:outline-none {% if subtask_marker == 'flagged' %}bg-water{% else %}border border-water bg-transparent{% endif %}"></button>
+    {% else %}
+      <span class="shrink-0 w-2 h-2 rounded-full {% if subtask_marker == 'flagged' %}bg-water{% else %}border border-water bg-transparent{% endif %}"
+            title="{% if subtask_marker == 'flagged' %}Flagged next action{% else %}Implicit next action (first incomplete){% endif %}"></span>
+    {% endif %}
+  {% endif %}
+
+  {% if task.is_project %}{% include "icons/folder.svg" %}{% endif %}
+
+  <div class="min-w-0 flex-1">
+    <div class="flex items-center gap-2 flex-wrap">
+      <p class="text-sm truncate">{{ task.title }}</p>
+      {% if task.big3 %}{% badge "big3" %}{% endif %}
+      {% if task.is_project %}{% badge "progress" text=task.progress_label %}{% endif %}
+      {% if task.carried_over_count %}{% badge "carried_over" n=task.carried_over_count %}{% endif %}
+      {% if task.missed_block_count %}{% badge "missed" n=task.missed_block_count %}{% endif %}
+      {% if task.q2_active %}{% badge "q2" %}{% endif %}
+      {% if waiting_days != None %}{% badge "waiting" n=waiting_days overdue=waiting_overdue %}{% endif %}
+    </div>
+    {% if task.tags.all %}
+      <div class="flex items-center gap-1 mt-1">
+        {% for tag in task.tags.all %}
+          <span class="text-xs font-mono {% if tag.is_context %}text-water{% else %}text-ink-soft{% endif %}">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  {% if meta %}<span class="font-mono text-xs text-ink-soft shrink-0">{{ meta }}</span>{% endif %}
+
+  {% for action in primary_actions %}
+    <button type="button"
+            hx-post="{{ action.url }}"
+            hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML swap:150ms"
+            {% if action.confirm %}hx-confirm="{{ action.confirm }}"{% endif %}
+            class="shrink-0 h-8 px-3 rounded-md border border-line text-xs hover:border-water hover:text-water focus-visible:ring-2 ring-water focus:outline-none">
+      {{ action.label }}
+    </button>
+  {% endfor %}
+
+  {% if menu_moves %}
+    <div class="relative shrink-0" x-data="{ open: false }" @click.outside="open = false">
+      <button type="button" @click="open = !open" aria-label="More actions"
+              class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">⋮</button>
+      <div x-show="open" x-cloak
+           class="absolute right-0 z-10 mt-1 w-40 bg-surface border border-line rounded-md shadow-sm overflow-hidden">
+        {% for move in menu_moves %}
+          <button type="button" @click="open = false"
+                  hx-post="{{ move.url }}"
+                  hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML swap:150ms"
+                  class="w-full text-left px-3 py-2 text-sm hover:bg-water-soft">{{ move.label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>

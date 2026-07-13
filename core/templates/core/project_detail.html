@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}{{ project.title }} · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between gap-3 mb-1">
+    <h1 class="font-display font-bold text-2xl truncate">{{ project.title }}</h1>
+    <button type="button"
+            hx-post="{% url 'task_complete' project.id %}"
+            hx-vals='{"force": "1"}'
+            hx-confirm="Complete anyway? Subtasks will be completed too."
+            hx-target="body" hx-swap="none"
+            onclick="setTimeout(() => window.location = '{% url 'projects' %}', 200)"
+            class="h-9 px-3 rounded-md border border-line text-sm hover:border-water hover:text-water focus-visible:ring-2 ring-water focus:outline-none shrink-0">
+      Mark project done
+    </button>
+  </div>
+  <div class="flex items-center gap-2 mb-4">
+    {% badge "progress" text=project.progress_label %}
+    {% if project.area %}<span class="text-xs text-ink-soft">{{ project.area.name }}</span>{% endif %}
+  </div>
+
+  {% if badge %}
+    <div class="mb-4 rounded-md border border-amber bg-amber-bg p-3 flex items-center justify-between gap-3">
+      <p class="text-sm text-amber">
+        {% if badge == "stalled" %}No next action. A project without a next action is stalled by definition.
+        {% else %}This project has subtasks but none is flagged as the next action.{% endif %}
+      </p>
+      <form method="post" action="{% url 'project_add_subtask' project.id %}" class="flex items-center gap-2 shrink-0">
+        {% csrf_token %}
+        <input type="text" name="title" placeholder="Add next task" required
+               class="h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+        <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Add</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if project.description %}
+    <p class="text-sm text-ink-soft whitespace-pre-line mb-6">{{ project.description }}</p>
+  {% endif %}
+
+  <div class="mb-6">
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Subtasks</h2>
+    <div class="divide-y divide-line border-t border-b border-line" data-sortable>
+      {% for subtask in subtasks %}
+        {% include "components/task_row.html" with task=subtask sortable=True subtask_marker=markers|get_item:subtask.id flag_url=flag_urls|get_item:subtask.id %}
+      {% empty %}
+        <p class="text-ink-soft text-sm py-6 text-center">No subtasks yet.</p>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'project_add_subtask' project.id %}" class="flex items-center gap-2 mt-3">
+      {% csrf_token %}
+      <input type="text" name="title" placeholder="Add subtask" required
+             class="flex-1 h-9 text-sm border border-line rounded-md px-3 focus:border-water focus:outline-none">
+      <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm">Add</button>
+    </form>
+  </div>
+
+  <div class="mb-6">
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Calendar time</h2>
+    <p class="text-ink-soft text-sm">Available once Google Calendar is connected (Epic 8).</p>
+  </div>
+
+  <p class="text-ink-soft text-xs font-mono">
+    Created {{ project.created_at|date:"d M Y" }} · {{ project.progress_label }} subtasks complete
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% comment %}
+Unlike task_row_removed.html this doesn't auto-fade - a move is meant to be
+undoable (docs/design.md §4 "Include Undo where the action is reversible"),
+so the row stays as a quiet confirmation line until the next full reload.
+{% endcomment %}
+<div id="task-row-{{ task.id }}" class="flex items-center justify-between gap-3 py-3 px-1 text-sm text-ink-soft">
+  <span>Moved to {{ moved_to }} — {{ task.title }}</span>
+  <button type="button"
+          hx-post="{% url 'task_move' task.id undo_target %}"
+          hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML"
+          class="text-water hover:underline text-xs shrink-0 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+    Undo
+  </button>
+</div>
