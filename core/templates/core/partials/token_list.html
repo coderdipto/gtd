@@ -1,0 +1,30 @@
+{% if new_token %}
+  <div class="mb-3 p-3 bg-water-soft border border-water rounded-md">
+    <p class="text-xs text-ink-soft mb-1">New token — copy it now, it won't be shown again in full:</p>
+    <p class="font-mono text-sm break-all">{{ new_token.token }}</p>
+  </div>
+{% endif %}
+<div class="divide-y divide-line">
+  {% for token in tokens %}
+    <div class="flex items-center justify-between py-2 text-sm">
+      <div>
+        <span>{{ token.label }}</span>
+        <span class="font-mono text-xs text-ink-soft ml-2">&bull;&bull;&bull;&bull;{{ token.token|slice:"-4:" }}</span>
+        {% if token.last_used_at %}
+          <span class="text-xs text-ink-soft ml-2">last used {{ token.last_used_at|timesince }} ago</span>
+        {% else %}
+          <span class="text-xs text-ink-soft ml-2">never used</span>
+        {% endif %}
+      </div>
+      <button type="button"
+              hx-post="{% url 'capture_token_revoke' token.id %}"
+              hx-target="#token-list" hx-swap="innerHTML"
+              hx-confirm="Revoke this token? Any Shortcut using it will stop working."
+              class="text-red text-xs hover:underline">
+        Revoke
+      </button>
+    </div>
+  {% empty %}
+    <p class="text-ink-soft text-sm py-2">No tokens yet.</p>
+  {% endfor %}
+</div>

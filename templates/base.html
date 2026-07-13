@@ -17,7 +17,8 @@
     }
   </script>
 </head>
-<body class="h-full bg-paper text-ink font-body" hx-boost="true">
+<body class="h-full bg-paper text-ink font-body" hx-boost="true"
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
   <div class="flex h-full">
     <!-- Desktop sidebar -->
@@ -68,6 +69,11 @@
           <span class="font-display font-bold">GTD</span>
         </div>
         <div class="flex-1"></div>
+        <button type="button" class="hidden lg:flex items-center justify-center w-8 h-8 rounded-md text-water hover:bg-water-soft mr-3"
+                hx-get="{% url 'capture_modal' %}" hx-target="#modal-root" hx-swap="innerHTML"
+                aria-label="Quick capture">
+          {% include "icons/plus.svg" %}
+        </button>
         <div class="font-mono text-xs text-ink-soft" id="trust-strip">
           inbox {{ inbox_count|default:"0" }} &middot; review {{ review_age_days|default:"—" }}
         </div>
@@ -101,6 +107,8 @@
       <span>Review</span>
     </a>
   </nav>
+
+  <div id="modal-root"></div>
 
 </body>
 </html>

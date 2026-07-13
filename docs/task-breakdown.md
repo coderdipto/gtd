@@ -61,16 +61,18 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 3 — Capture (M1)
 
-- [ ] `/capture`: autofocused title input + collapsed "+ details" description disclosure (per `design.md` "Capture" screen spec — text-xl input, 400ms water-flash on submit, last-3-captured faded list below).
-- [ ] HTMX POST `/inbox/items/` → clears + refocuses for rapid-fire capture.
-- [ ] Global "+" header button opens same form in a modal on every page.
-- [ ] PWA `start_url: /capture` behavior when launched from home screen.
-- [ ] `POST /api/capture`: Bearer `CaptureToken` auth, `{"title": str, "description": str?}` → `201 {"id": …}`, 60/min rate limit, CSRF-exempt, login-exempt.
-- [ ] Settings page: step-by-step iOS Shortcut setup instructions (Share Sheet → POST → Notification) + token create/revoke UI.
-- [ ] Inbox row **Done** button (2-minute rule): `done_directly=True, processed_at=now`, never becomes a Task.
-- [ ] Inbox screen per `design.md`: newest-first, stripped rows, "Process inbox →" primary button with count, empty state copy verbatim from §9.
-- [ ] **Test:** API auth (valid/invalid/missing token), done-directly path. (Duplicate rapid-fire submits are acceptable — no idempotence test needed.)
-- [ ] **Rollback:** remove routes.
+- [x] `/capture`: autofocused title input + collapsed "+ details" description disclosure (per `design.md` "Capture" screen spec — text-xl input, 400ms water-flash on submit, last-3-captured faded list below).
+- [x] HTMX POST `/inbox/items/` → clears + refocuses for rapid-fire capture. (Alpine `x-init` refocuses `$refs.title` after each HTMX swap.)
+- [x] Global "+" header button opens same form in a modal on every page (desktop header only — mobile already has a dedicated bottom-tab "+" that opens the full `/capture` page, which doubles as the PWA `start_url`). Modal fragment fetched fresh via `hx-get` each open so state never goes stale.
+- [x] PWA `start_url: /capture` behavior when launched from home screen (set in Epic 1's `manifest.json`, confirmed still correct).
+- [x] `POST /api/capture`: Bearer `CaptureToken` auth, `{"title": str, "description": str?}` → `201 {"id": …}`, 60/min rate limit (cache-based fixed window), CSRF-exempt, login-exempt (`@login_not_required`, Django 5.1).
+- [x] Settings page: step-by-step iOS Shortcut setup instructions (Share Sheet → POST → Notification) + token create/revoke UI (HTMX partial swap, token value shown once on creation).
+- [x] Inbox row **Done** button (2-minute rule): `done_directly=True, processed_at=now`, never becomes a Task.
+- [x] Inbox screen per `design.md`: newest-first, stripped rows, "Process inbox →" primary button with count, empty state copy verbatim from §9 ("Inbox zero." / "Capture anything on your mind — filtering happens later.").
+- [x] **Test:** API auth (valid/invalid/missing token, login-exemption, rate limit), done-directly path (never creates a Task, drops out of inbox list). 8 new tests, 19/19 total passing.
+- [x] **Rollback:** remove routes.
+- **Bug found and fixed during manual verification:** the HTMX `Done` button (a bare button, not inside a `<form>`) had no CSRF token and 403'd. Fixed by adding `hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'` to `<body>` in `templates/base.html` so every HTMX request carries it — a pattern the later epics (reorder, clarify wizard, etc.) will also depend on.
+- Not yet implemented: the "Clarify" button on each inbox row and the "Process inbox →" button both currently point at a stub (`inbox_process`) — the real one-at-a-time wizard is Epic 4.
 
 ## Epic 4 — Clarify wizard (M1)
 

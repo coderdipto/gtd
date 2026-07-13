@@ -1,0 +1,14 @@
+<div class="fixed inset-0 z-40 flex items-start justify-center pt-24 bg-ink/20"
+     x-data="{ open: true }" x-show="open" x-cloak
+     @keydown.escape.window="open = false"
+     @click.self="open = false">
+  <div class="w-full max-w-xl bg-surface border border-line rounded-md shadow-sm p-6"
+       @click.outside="open = false">
+    <div class="flex justify-end mb-2">
+      <button type="button" @click="open = false" class="text-ink-soft hover:text-ink" aria-label="Close">
+        {% include "icons/x.svg" %}
+      </button>
+    </div>
+    {% include "core/partials/capture_modal_form.html" %}
+  </div>
+</div>

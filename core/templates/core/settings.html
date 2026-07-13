@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Settings · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6 space-y-8">
+  <h1 class="font-display font-bold text-2xl">Settings</h1>
+
+  <section class="bg-surface border border-line rounded-md p-4">
+    <h2 class="font-display font-semibold text-lg mb-2">Capture tokens</h2>
+    <p class="text-ink-soft text-sm mb-4">
+      Used by the iOS Shortcut to POST captures to <code class="font-mono">/api/capture</code>
+      with <code class="font-mono">Authorization: Bearer &lt;token&gt;</code>.
+    </p>
+
+    <form hx-post="{% url 'capture_token_create' %}" hx-target="#token-list" hx-swap="innerHTML"
+          class="flex items-end gap-2 mb-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs text-ink-soft mb-1" for="id_label">Label</label>
+        <input type="text" name="label" id="id_label" value="iPhone"
+               class="h-9 px-2 border border-line rounded-md text-sm">
+      </div>
+      <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm">Create token</button>
+    </form>
+
+    <div id="token-list">
+      {% include "core/partials/token_list.html" %}
+    </div>
+  </section>
+
+  <section class="bg-surface border border-line rounded-md p-4">
+    <h2 class="font-display font-semibold text-lg mb-2">iPhone Shortcut setup</h2>
+    <ol class="list-decimal list-inside text-sm space-y-2 text-ink-soft">
+      <li>Create a capture token above and copy it.</li>
+      <li>In the Shortcuts app, add action <span class="font-mono text-ink">Get Text from Share Sheet</span> (or <span class="font-mono text-ink">Ask for Text</span> for Siri capture).</li>
+      <li>Add action <span class="font-mono text-ink">Get Contents of URL</span>: POST to
+        <span class="font-mono text-ink">https://gtd.sudipto.dev/api/capture</span>,
+        header <span class="font-mono text-ink">Authorization: Bearer &lt;token&gt;</span>,
+        JSON body <span class="font-mono text-ink">{"title": Shortcut Input}</span>.</li>
+      <li>Add action <span class="font-mono text-ink">Show Notification</span> to confirm capture.</li>
+      <li>Enable "Show in Share Sheet" and add a Siri phrase if you want voice capture.</li>
+    </ol>
+  </section>
+</div>
+{% endblock %}

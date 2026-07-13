@@ -1,0 +1,18 @@
+<div id="capture-form-wrap-modal"
+     x-data="{ flash: {{ just_captured|yesno:'true,false' }}, detailsOpen: false }"
+     x-init="if (flash) { setTimeout(() => flash = false, 400); $refs.title.focus(); } else { $refs.title.focus(); }">
+  <form hx-post="{% url 'inbox_item_create' %}" hx-target="#capture-form-wrap-modal" hx-swap="outerHTML"
+        class="space-y-3">
+    {% csrf_token %}
+    <input type="hidden" name="from_modal" value="1">
+    <div :class="flash ? 'border-water' : 'border-line'" class="border-b transition-colors duration-[400ms]">
+      {{ form.title }}
+    </div>
+    <div x-show="detailsOpen" x-cloak>
+      {{ form.description }}
+    </div>
+    <button type="button" x-show="!detailsOpen" @click="detailsOpen = true"
+            class="text-xs text-ink-soft hover:text-water">+ details</button>
+    <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Capture</button>
+  </form>
+</div>

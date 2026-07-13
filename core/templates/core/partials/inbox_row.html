@@ -1,0 +1,18 @@
+<div id="inbox-item-{{ item.id }}" class="flex items-center justify-between gap-3 py-3 px-1 transition-opacity duration-150">
+  <div class="min-w-0">
+    <p class="text-sm truncate">{{ item.title }}</p>
+    <p class="font-mono text-xs text-ink-soft">{{ item.created_at|timesince }} ago</p>
+  </div>
+  <div class="flex items-center gap-2 shrink-0">
+    <button type="button"
+            hx-post="{% url 'inbox_item_done' item.id %}"
+            hx-target="#inbox-item-{{ item.id }}" hx-swap="outerHTML swap:150ms"
+            class="h-9 px-3 rounded-md border border-line text-sm hover:border-water hover:text-water"
+            title="Under 2 minutes? Do it now.">
+      Done
+    </button>
+    <a href="{% url 'inbox_process' %}" class="h-9 px-3 rounded-md bg-water text-white text-sm flex items-center">
+      Clarify
+    </a>
+  </div>
+</div>

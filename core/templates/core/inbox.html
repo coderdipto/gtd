@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Inbox · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="font-display font-bold text-2xl">Inbox</h1>
+    {% if items %}
+      <a href="{% url 'inbox_process' %}"
+         class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium flex items-center gap-2">
+        Process inbox &rarr;
+        <span class="font-mono text-xs bg-white/20 rounded-full px-2 py-0.5">{{ items|length }}</span>
+      </a>
+    {% endif %}
+  </div>
+
+  <div id="inbox-list" class="divide-y divide-line border-t border-b border-line">
+    {% for item in items %}
+      {% include "core/partials/inbox_row.html" %}
+    {% empty %}
+      <div class="py-16 text-center">
+        <p class="font-display font-bold text-xl mb-1">Inbox zero.</p>
+        <p class="text-ink-soft text-sm">Capture anything on your mind — filtering happens later.</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

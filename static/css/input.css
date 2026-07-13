@@ -54,4 +54,8 @@
     width: 20px;
     height: 20px;
   }
+
+  [x-cloak] {
+    display: none !important;
+  }
 }
