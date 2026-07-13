@@ -48,16 +48,16 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 2 — Data model (M1)
 
-- [ ] Implement all models in `core/models.py` exactly as specified in `solution-plan.md` Step 2 (`Tag`, `Area`, `InboxItem`, `Task`, `Note`, `NoteAttachment`, `RecurringTemplate`, `TimeBlock`, `GoogleCredential`, `SyncChannel`, `ReviewConfig`, `ReviewSession`, `CaptureToken`, `NotificationLog`) — field lists are exhaustive, implement as written, do not redesign.
-- [ ] `CheckConstraint no_project_subtask` + `Meta.indexes` on `Task`.
-- [ ] Single initial migration.
-- [ ] Code-level semantics (not just schema):
-  - [ ] Project = `Task(is_project=True, parent=None)`; subtasks one level only.
-  - [ ] `project.next_actions()` queryset helper implementing the three-state resolution (flagged → implicit first-incomplete → `NEEDS_ATTENTION`).
-  - [ ] Trash = `list=TRASH` / `trashed_at`; cron purge query (purge itself is Step 12, but the queryset should exist now).
-  - [ ] Completing a project with incomplete subtasks prompts "Complete anyway?" (confirm dialog wiring can land in Step 5 UI, but the guard logic belongs here).
-- [ ] **Test:** model constraints (subtask-must-have-project-parent), `next_actions()` all three states, trash purge query.
-- [ ] **Rollback:** migration revert (greenfield tables).
+- [x] Implement all models in `core/models.py` exactly as specified in `solution-plan.md` Step 2 (`Tag`, `Area`, `InboxItem`, `Task`, `Note`, `NoteAttachment`, `RecurringTemplate`, `TimeBlock`, `GoogleCredential`, `SyncChannel`, `ReviewConfig`, `ReviewSession`, `CaptureToken`, `NotificationLog`) — field lists are exhaustive, implement as written, do not redesign.
+- [x] `CheckConstraint no_project_subtask` + `Meta.indexes` on `Task`. Also added `GinIndex` on `Note.search` (implied by the plan's "GIN index" comment on that field) and `django.contrib.postgres` to `INSTALLED_APPS` for `SearchVectorField`/`GinIndex` support.
+- [x] Single initial migration (`core/migrations/0001_initial.py`).
+- [x] Code-level semantics (not just schema):
+  - [x] Project = `Task(is_project=True, parent=None)`; subtasks one level only (enforced by DB constraint, verified via test).
+  - [x] `project.next_actions()` queryset helper implementing the three-state resolution (flagged → implicit first-incomplete → `NEEDS_ATTENTION`); returns `(state, [tasks])`.
+  - [x] Trash = `list=TRASH` / `trashed_at`; `Task.objects.purgeable(as_of=, days=30)` queryset method (cron wiring itself is Step 12).
+  - [x] Completing a project with incomplete subtasks: `Task.complete(force=False)` returns `False` (blocked) unless `force=True`, in which case subtasks are completed too. UI wiring for the confirm dialog is Step 5.
+- [x] **Test:** model constraints (subtask-must-have-project-parent, both directions), `next_actions()` all three states + no-subtasks edge case, `complete()` blocked/forced paths, trash purge query (old vs. recent vs. non-trashed). 11/11 passing. Manually verified via Django admin (all 14 models registered and browsable) and confirmed the check constraint + GIN index exist in Postgres via `psql \d`.
+- [x] **Rollback:** migration revert (greenfield tables) — not exercised, but standard `migrate core 0001` / squash path applies.
 
 ## Epic 3 — Capture (M1)
 
