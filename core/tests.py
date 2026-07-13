@@ -8,7 +8,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import CaptureToken, InboxItem, Task
+from core.models import CaptureToken, InboxItem, Note, Tag, Task
+from core.tagging import extract_tags, sync_tags_from_text
 
 
 class SmokeTest(TestCase):
@@ -195,3 +196,198 @@ class TwoMinuteRuleTests(TestCase):
         self.client.post(reverse("inbox_item_done", args=[item.id]))
         response = self.client.get(reverse("inbox"))
         self.assertNotContains(response, "Reply to Anika")
+
+
+class TagParserTests(TestCase):
+    def test_context_and_plain_tag(self):
+        tags = list(extract_tags("Call mom @phone #family"))
+        self.assertIn(("phone", True), tags)
+        self.assertIn(("family", False), tags)
+
+    def test_case_folded(self):
+        tags = list(extract_tags("@Errand"))
+        self.assertEqual(tags, [("errand", True)])
+
+    def test_no_match_mid_word_email_or_url_fragment(self):
+        # @/# only tag at the start of text or after whitespace, so an email
+        # local part or a URL fragment doesn't get misread as a tag token.
+        self.assertEqual(list(extract_tags("john@example.com")), [])
+        self.assertEqual(list(extract_tags("see docs.com/page#comment")), [])
+
+    def test_empty_text_yields_nothing(self):
+        self.assertEqual(list(extract_tags("")), [])
+        self.assertEqual(list(extract_tags(None)), [])
+
+    def test_sync_creates_and_reuses_tags(self):
+        task = Task.objects.create(title="Call mom @phone")
+        sync_tags_from_text(task, task.title)
+        self.assertEqual(Tag.objects.filter(name="phone", is_context=True).count(), 1)
+        self.assertIn("phone", task.tags.values_list("name", flat=True))
+
+        other = Task.objects.create(title="Call dad @phone")
+        sync_tags_from_text(other, other.title)
+        self.assertEqual(Tag.objects.filter(name="phone").count(), 1)
+
+    def test_sync_is_additive_never_removes_existing_tags(self):
+        task = Task.objects.create(title="Something #keep")
+        sync_tags_from_text(task, task.title)
+        kept_tag = Tag.objects.get(name="keep")
+        sync_tags_from_text(task, "no tags here at all")
+        self.assertIn(kept_tag, task.tags.all())
+
+    def test_sync_across_multiple_texts_no_duplicate_tags(self):
+        task = Task.objects.create(title="Title @same", description="Body @same")
+        sync_tags_from_text(task, task.title, task.description)
+        self.assertEqual(task.tags.filter(name="same").count(), 1)
+
+
+class ClarifyWizardTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_process_start_redirects_to_oldest_unprocessed_item(self):
+        older = InboxItem.objects.create(title="Older")
+        InboxItem.objects.create(title="Newer")
+        response = self.client.get(reverse("inbox_process"))
+        self.assertRedirects(response, reverse("clarify_actionable", args=[older.id]))
+
+    def test_process_start_shows_finished_screen_when_empty(self):
+        response = self.client.get(reverse("inbox_process"))
+        self.assertTemplateUsed(response, "core/clarify/finished.html")
+        self.assertContains(response, "Inbox zero")
+
+    def test_no_cherry_picking_always_returns_oldest_regardless_of_pk(self):
+        older = InboxItem.objects.create(title="Older")
+        newer = InboxItem.objects.create(title="Newer")
+        # Even asking for the actionable screen of the newer item directly
+        # doesn't change which item process_start/inbox_process hands back.
+        self.client.get(reverse("clarify_actionable", args=[newer.id]))
+        response = self.client.get(reverse("inbox_process"))
+        self.assertRedirects(response, reverse("clarify_actionable", args=[older.id]))
+
+    def test_trash_path_creates_trashed_task_not_raw_discard(self):
+        item = InboxItem.objects.create(title="Junk mail", description="spam")
+        self.client.post(reverse("clarify_trash", args=[item.id]))
+        item.refresh_from_db()
+        self.assertIsNotNone(item.processed_at)
+        task = Task.objects.get(title="Junk mail")
+        self.assertEqual(task.list, Task.List.TRASH)
+        self.assertIsNotNone(task.trashed_at)
+
+    def test_done_path_marks_done_directly_never_creates_task(self):
+        item = InboxItem.objects.create(title="Quick reply")
+        self.client.post(reverse("clarify_done", args=[item.id]))
+        item.refresh_from_db()
+        self.assertTrue(item.done_directly)
+        self.assertIsNotNone(item.processed_at)
+        self.assertEqual(Task.objects.count(), 0)
+
+    def test_someday_path_creates_someday_task_and_tags(self):
+        item = InboxItem.objects.create(title="Learn pottery")
+        response = self.client.post(
+            reverse("clarify_someday", args=[item.id]),
+            {"title": "Learn pottery @hobby", "description": ""},
+        )
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Learn pottery @hobby")
+        self.assertEqual(task.list, Task.List.SOMEDAY)
+        self.assertIn("hobby", task.tags.values_list("name", flat=True))
+        item.refresh_from_db()
+        self.assertIsNotNone(item.processed_at)
+
+    def test_reference_path_creates_note(self):
+        item = InboxItem.objects.create(title="Article link", description="https://example.com")
+        response = self.client.post(
+            reverse("clarify_reference", args=[item.id]),
+            {"title": "Article link", "body": "https://example.com #reading"},
+        )
+        self.assertEqual(response.status_code, 302)
+        note = Note.objects.get(title="Article link")
+        self.assertIn("reading", note.tags.values_list("name", flat=True))
+        item.refresh_from_db()
+        self.assertIsNotNone(item.processed_at)
+
+    def test_single_action_path_creates_next_task(self):
+        item = InboxItem.objects.create(title="Email Bob")
+        response = self.client.post(
+            reverse("clarify_single", args=[item.id]),
+            {"title": "Email Bob @email", "description": "", "horizon": Task.Horizon.ANYTIME},
+        )
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Email Bob @email")
+        self.assertEqual(task.list, Task.List.NEXT)
+        self.assertFalse(task.is_project)
+        self.assertIn("email", task.tags.values_list("name", flat=True))
+
+    def test_project_path_requires_at_least_one_subtask(self):
+        item = InboxItem.objects.create(title="Plan trip")
+        response = self.client.post(
+            reverse("clarify_project", args=[item.id]),
+            {"title": "Plan trip", "description": ""},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "next action")
+        self.assertFalse(Task.objects.filter(title="Plan trip").exists())
+        item.refresh_from_db()
+        self.assertIsNone(item.processed_at)
+
+    def test_project_path_creates_project_with_flagged_first_subtask(self):
+        item = InboxItem.objects.create(title="Plan trip")
+        response = self.client.post(
+            reverse("clarify_project", args=[item.id]),
+            {
+                "title": "Plan trip",
+                "description": "",
+                "subtask_title": ["Book flights", "Book hotel"],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        project = Task.objects.get(title="Plan trip")
+        self.assertTrue(project.is_project)
+        subtasks = list(project.subtasks.order_by("sort_order"))
+        self.assertEqual([s.title for s in subtasks], ["Book flights", "Book hotel"])
+        self.assertTrue(subtasks[0].is_next_action)
+        self.assertFalse(subtasks[1].is_next_action)
+
+    def test_delegate_path_creates_waiting_task(self):
+        item = InboxItem.objects.create(title="Get contract signed")
+        response = self.client.post(
+            reverse("clarify_delegate", args=[item.id]),
+            {
+                "title": "Get contract signed",
+                "description": "",
+                "waiting_on": "Legal team",
+                "follow_up_after_days": 5,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Get contract signed")
+        self.assertEqual(task.list, Task.List.WAITING)
+        self.assertEqual(task.waiting_on, "Legal team")
+        self.assertEqual(task.waiting_since, timezone.now().date())
+
+    def test_form_screens_render_on_get_with_tag_typeahead_wired(self):
+        # Regression check for the field_tagged.html partial (Alpine
+        # tagTypeahead) added alongside the plain form fields - a broken
+        # include there would 500 every GET to these screens.
+        item = InboxItem.objects.create(title="Something")
+        for name in (
+            "clarify_someday",
+            "clarify_reference",
+            "clarify_single",
+            "clarify_project",
+            "clarify_delegate",
+        ):
+            response = self.client.get(reverse(name, args=[item.id]))
+            self.assertEqual(response.status_code, 200, name)
+            self.assertContains(response, "tagTypeahead(")
+
+    def test_progress_counter_advances_across_the_session(self):
+        first = InboxItem.objects.create(title="First")
+        second = InboxItem.objects.create(title="Second")
+        response = self.client.get(reverse("clarify_actionable", args=[first.id]))
+        self.assertContains(response, "1 / 2")
+        self.client.post(reverse("clarify_trash", args=[first.id]))
+        response = self.client.get(reverse("clarify_actionable", args=[second.id]))
+        self.assertContains(response, "2 / 2")

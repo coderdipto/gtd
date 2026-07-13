@@ -1,0 +1,30 @@
+{% extends "components/focus_card_base.html" %}
+{% block wizard_heading %}What kind of action?{% endblock %}
+{% block wizard_helper %}Under 2 minutes? Do it now &mdash; tracking it costs more than doing it.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-2">
+  <form method="post" action="{% url 'clarify_done' item.id %}">
+    {% csrf_token %}
+    <button type="submit" data-wizard-key="1"
+            class="w-full flex items-center justify-between h-12 px-4 rounded-md bg-water text-white focus-visible:ring-2 ring-water focus:outline-none">
+      <span class="text-sm">Did it &mdash; Done</span>
+      <span class="font-mono text-xs border border-white/40 rounded-md px-2 py-0.5">1</span>
+    </button>
+  </form>
+  <a href="{% url 'clarify_single' item.id %}" data-wizard-key="2"
+     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">Single action</span>
+    <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">2</span>
+  </a>
+  <a href="{% url 'clarify_project' item.id %}" data-wizard-key="3"
+     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">Project</span>
+    <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">3</span>
+  </a>
+  <a href="{% url 'clarify_delegate' item.id %}" data-wizard-key="4"
+     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">Delegate &mdash; Waiting For</span>
+    <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">4</span>
+  </a>
+</div>
+{% endblock %}

@@ -76,20 +76,20 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 4 — Clarify wizard (M1)
 
-- [ ] `focus_card.html` component per `design.md` §4 (max-w-xl, top progress bar, step counter, keyboard 1–4/Enter/Esc).
-- [ ] "Process Inbox" entry point, oldest-first, one-at-a-time, no cherry-picking, auto-advance after each decision.
-- [ ] Screen 1 "Is it actionable?": quoted inbox item in grey inset; No → Trash/Someday/Reference; Yes → screen 2.
-- [ ] Trash path → unified trash view (Task-to-trash, not raw InboxItem discard).
-- [ ] Someday path → Task form pre-filled, `list=SOMEDAY`.
-- [ ] Reference path → Note form pre-filled (title/description → title/body).
-- [ ] Screen 2 "Actionable path": 2-minute helper + "Did it — Done" button; else Single action / Project / Delegate.
-- [ ] Single action → Task form (title, description, contexts/tags live parser, horizon default Anytime, optional due date, area).
-- [ ] Project → same form + `is_project=True` + inline first-subtasks repeater; first subtask auto-flagged `is_next_action=True`.
-- [ ] Delegate → Waiting For form (`waiting_on`, follow-up days default 5, `waiting_since=today`).
-- [ ] `processed_at` set on completion; progress bar "N / M"; finish screen "Inbox zero 🎉" (the one place celebration is allowed, per `design.md` §7 — single subtle burst, not looping).
-- [ ] Inline tag parser (shared util, reused in Step 5): `@([a-z0-9\-]+)` context tag, `#([a-z0-9\-]+)` plain tag, get-or-create + case-fold, tokens stay in text, M2M synced additively on save; Alpine typeahead after `@`/`#`.
-- [ ] **Test:** each decision path produces the right entity; strict one-at-a-time ordering; parser create/reuse/case-fold/no-dupes.
-- [ ] **Rollback:** wizard routes off; inbox remains a plain list.
+- [x] `focus_card.html` component per `design.md` §4 (max-w-xl, top progress bar, step counter, keyboard 1–4/Enter/Esc) — implemented as `templates/components/focus_card_base.html`; keyboard handling is a window-level Alpine `@keydown` that clicks `[data-wizard-key]` elements, Esc routes to Inbox.
+- [x] "Process Inbox" entry point, oldest-first, one-at-a-time, no cherry-picking, auto-advance after each decision — `core/clarify.py::process_start`/`_next_item_or_none` (ordered `created_at, id`); per-row Inbox "Clarify" link deliberately routes through this same entry point rather than deep-linking a specific item, preserving no-cherry-picking.
+- [x] Screen 1 "Is it actionable?": quoted inbox item in grey inset; No → Trash/Someday/Reference; Yes → screen 2.
+- [x] Trash path → unified trash view (Task-to-trash, not raw InboxItem discard).
+- [x] Someday path → Task form pre-filled, `list=SOMEDAY`.
+- [x] Reference path → Note form pre-filled (title/description → title/body).
+- [x] Screen 2 "Actionable path": 2-minute helper + "Did it — Done" button; else Single action / Project / Delegate.
+- [x] Single action → Task form (title, description, contexts/tags live parser, horizon default Anytime, optional due date, area).
+- [x] Project → same form + `is_project=True` + inline first-subtasks repeater; first subtask auto-flagged `is_next_action=True`; form refuses to save with zero subtasks (re-renders with an error, item stays unprocessed).
+- [x] Delegate → Waiting For form (`waiting_on`, follow-up days default 5, `waiting_since=today`).
+- [x] `processed_at` set on completion; progress bar "N / M" (progress is session-tracked processed-count + still-unprocessed count, recomputed each render so new captures mid-session extend the total instead of corrupting it); finish screen "Inbox zero 🎉" (the one place celebration is allowed, per `design.md` §7 — single subtle burst, not looping).
+- [x] Inline tag parser (shared util, reused in Step 5): `@([a-z0-9\-]+)` context tag, `#([a-z0-9\-]+)` plain tag, get-or-create + case-fold, tokens stay in text, M2M synced additively on save — implemented in `core/tagging.py` (`extract_tags`/`sync_tags_from_text`); regex requires the `@`/`#` to be at start-of-text or preceded by whitespace (deliberate boundary fix over the plan's literal regex, so `john@example.com` / `...#comment` don't get misread as tags — see comment in `core/tagging.py`). Alpine typeahead after `@`/`#` implemented (`static/js/tag-typeahead.js` + `core/partials/field_tagged.html`, wired onto the description/body fields in someday/reference/single/project/delegate) — suggests from all existing `Tag` names client-side, server-side parsing in `tagging.py` remains the source of truth.
+- [x] **Test:** each decision path produces the right entity; strict one-at-a-time ordering; parser create/reuse/case-fold/no-dupes. 20 new tests added to `core/tests.py` (`ClarifyWizardTests`, `TagParserTests`), 39/39 passing.
+- [x] **Rollback:** wizard routes off; inbox remains a plain list (routes are independent entries in `core/urls.py`, no shared state to unwind).
 
 ## Epic 5 — Lists, projects, contexts, ordering, horizons (M1)
 

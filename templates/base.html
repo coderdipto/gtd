@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/sortable.min.js' %}" defer></script>
+  <script src="{% static 'js/tag-typeahead.js' %}" defer></script>
   <script src="{% static 'js/alpine.min.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
   <script>
@@ -29,36 +30,36 @@
       <nav class="flex-1 px-2 space-y-6 overflow-y-auto">
         <div>
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Capture</p>
-          <a href="{% url 'inbox' %}" class="flex items-center justify-between px-2 py-2 rounded-md text-sm hover:bg-water-soft">
+          <a href="{% url 'inbox' %}" class="flex items-center justify-between px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">
             <span>Inbox</span>
             <span class="font-mono text-xs text-ink-soft">{{ inbox_count|default:"0" }}</span>
           </a>
         </div>
         <div>
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Engage</p>
-          <a href="{% url 'today' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Today</a>
-          <a href="{% url 'week' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">This Week</a>
-          <a href="{% url 'month' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">This Month</a>
-          <a href="{% url 'tasks' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Next Actions</a>
+          <a href="{% url 'today' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Today</a>
+          <a href="{% url 'week' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">This Week</a>
+          <a href="{% url 'month' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">This Month</a>
+          <a href="{% url 'tasks' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Next Actions</a>
         </div>
         <div>
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Organize</p>
-          <a href="{% url 'projects' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Projects</a>
-          <a href="{% url 'waiting' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Waiting For</a>
-          <a href="{% url 'someday' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Someday</a>
-          <a href="{% url 'notes' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Notes</a>
-          <a href="{% url 'recurring' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Recurring</a>
-          <a href="{% url 'tags' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Tags</a>
+          <a href="{% url 'projects' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Projects</a>
+          <a href="{% url 'waiting' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Waiting For</a>
+          <a href="{% url 'someday' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Someday</a>
+          <a href="{% url 'notes' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Notes</a>
+          <a href="{% url 'recurring' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Recurring</a>
+          <a href="{% url 'tags' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Tags</a>
         </div>
         <div>
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Reflect</p>
-          <a href="{% url 'review' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Review</a>
-          <a href="{% url 'stats' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Stats</a>
+          <a href="{% url 'review' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Review</a>
+          <a href="{% url 'stats' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Stats</a>
         </div>
       </nav>
       <div class="p-2 border-t border-line">
-        <a href="{% url 'settings' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Settings</a>
-        <a href="{% url 'trash' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Trash</a>
+        <a href="{% url 'settings' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Settings</a>
+        <a href="{% url 'trash' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Trash</a>
       </div>
     </aside>
 
@@ -69,7 +70,7 @@
           <span class="font-display font-bold">GTD</span>
         </div>
         <div class="flex-1"></div>
-        <button type="button" class="hidden lg:flex items-center justify-center w-8 h-8 rounded-md text-water hover:bg-water-soft mr-3"
+        <button type="button" class="hidden lg:flex items-center justify-center w-8 h-8 rounded-md text-water hover:bg-water-soft mr-3 focus-visible:ring-2 ring-water focus:outline-none"
                 hx-get="{% url 'capture_modal' %}" hx-target="#modal-root" hx-swap="innerHTML"
                 aria-label="Quick capture">
           {% include "icons/plus.svg" %}
@@ -87,22 +88,22 @@
 
   <!-- Mobile bottom tab bar -->
   <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-surface border-t border-line flex items-center justify-around h-16 px-2">
-    <a href="{% url 'inbox' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+    <a href="{% url 'inbox' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
       {% include "icons/inbox.svg" %}
       <span>Inbox</span>
     </a>
-    <a href="{% url 'today' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+    <a href="{% url 'today' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
       {% include "icons/circle-check.svg" %}
       <span>Today</span>
     </a>
-    <a href="{% url 'capture' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-water text-white -mt-6 shadow-sm">
+    <a href="{% url 'capture' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-water text-white -mt-6 shadow-sm focus-visible:ring-2 ring-water focus:outline-none">
       {% include "icons/plus.svg" %}
     </a>
-    <a href="{% url 'calendar_page' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+    <a href="{% url 'calendar_page' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
       {% include "icons/calendar.svg" %}
       <span>Calendar</span>
     </a>
-    <a href="{% url 'review' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+    <a href="{% url 'review' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
       {% include "icons/calendar-check.svg" %}
       <span>Review</span>
     </a>

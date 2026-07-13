@@ -1,21 +1,27 @@
-<div id="capture-form-wrap"
+<div id="{% if modal %}capture-form-wrap-modal{% else %}capture-form-wrap{% endif %}"
      x-data="{ flash: {{ just_captured|yesno:'true,false' }}, detailsOpen: false }"
-     x-init="if (flash) { setTimeout(() => flash = false, 400); $refs.title.focus(); }">
-  <form hx-post="{% url 'inbox_item_create' %}" hx-target="#capture-form-wrap" hx-swap="outerHTML"
-        class="space-y-3">
+     x-init="$refs.title.focus(); if (flash) setTimeout(() => flash = false, 400)">
+  <form hx-post="{% url 'inbox_item_create' %}"
+        hx-target="#{% if modal %}capture-form-wrap-modal{% else %}capture-form-wrap{% endif %}"
+        hx-swap="outerHTML" class="space-y-3">
     {% csrf_token %}
+    {% if modal %}<input type="hidden" name="from_modal" value="1">{% endif %}
     <div :class="flash ? 'border-water' : 'border-line'" class="border-b transition-colors duration-[400ms]">
       {{ form.title }}
     </div>
+    {% for error in form.title.errors %}
+      <p class="text-red text-xs">{{ error }}</p>
+    {% endfor %}
     <div x-show="detailsOpen" x-cloak>
       {{ form.description }}
     </div>
     <button type="button" x-show="!detailsOpen" @click="detailsOpen = true"
-            class="text-xs text-ink-soft hover:text-water">+ details</button>
-    <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium">Capture</button>
+            class="text-xs text-ink-soft hover:text-water focus-visible:ring-2 ring-water focus:outline-none rounded-md">+ details</button>
+    <button type="submit"
+            class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Capture</button>
   </form>
 
-  {% if recent %}
+  {% if not modal and recent %}
   <div class="mt-6 space-y-1 opacity-50">
     {% for it in recent %}
       <p class="text-sm truncate">{{ it.title }}</p>

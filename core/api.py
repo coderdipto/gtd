@@ -14,12 +14,17 @@ RATE_LIMIT_PER_MINUTE = 60
 
 
 def _rate_limited(token_str):
+    # cache.add() only sets the key if absent (atomic), and cache.incr() is an
+    # atomic increment on the backend - together they avoid the read-then-write
+    # race a plain get()/set() pair would have under concurrent requests. Note
+    # this is still only atomic *within* one cache backend instance: the
+    # default LocMemCache is per-process, so under a multi-worker deployment
+    # (gunicorn) the real cap is "N/min per worker", not a single global N/min
+    # - a shared backend (e.g. Redis) would be needed to close that gap.
     key = f"capture_rl:{token_str}:{int(time.time() // 60)}"
-    count = cache.get(key, 0)
-    if count >= RATE_LIMIT_PER_MINUTE:
-        return True
-    cache.set(key, count + 1, timeout=61)
-    return False
+    cache.add(key, 0, timeout=61)
+    count = cache.incr(key)
+    return count > RATE_LIMIT_PER_MINUTE
 
 
 @csrf_exempt

@@ -1,0 +1,25 @@
+{% extends "components/focus_card_base.html" %}
+{% block wizard_heading %}What is it, then?{% endblock %}
+{% block wizard_helper %}Trash it, park it for someday, or file it as reference.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-2">
+  <form method="post" action="{% url 'clarify_trash' item.id %}">
+    {% csrf_token %}
+    <button type="submit" data-wizard-key="1"
+            class="w-full flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-red text-red focus-visible:ring-2 ring-water focus:outline-none">
+      <span class="text-sm">Trash</span>
+      <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">1</span>
+    </button>
+  </form>
+  <a href="{% url 'clarify_someday' item.id %}" data-wizard-key="2"
+     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">Someday</span>
+    <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">2</span>
+  </a>
+  <a href="{% url 'clarify_reference' item.id %}" data-wizard-key="3"
+     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">Reference</span>
+    <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">3</span>
+  </a>
+</div>
+{% endblock %}

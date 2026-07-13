@@ -1,0 +1,17 @@
+{% extends "components/focus_card_base.html" %}
+{% block wizard_heading %}Is it actionable?{% endblock %}
+{% block wizard_helper %}Is there a physical, visible action to take? If not, it's trash, someday, or reference.{% endblock %}
+{% block wizard_body %}
+<div class="space-y-2">
+  <a href="{% url 'clarify_not_actionable' item.id %}" data-wizard-key="1"
+     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">No &mdash; nothing to do here</span>
+    <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">1</span>
+  </a>
+  <a href="{% url 'clarify_actionable_type' item.id %}" data-wizard-key="2"
+     class="flex items-center justify-between h-12 px-4 rounded-md bg-water text-white focus-visible:ring-2 ring-water focus:outline-none">
+    <span class="text-sm">Yes &mdash; there's a next action</span>
+    <span class="font-mono text-xs border border-white/40 rounded-md px-2 py-0.5">2</span>
+  </a>
+</div>
+{% endblock %}

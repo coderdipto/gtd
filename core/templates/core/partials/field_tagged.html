@@ -1,0 +1,22 @@
+{% comment %}
+Same as field.html but for a free-text field that accepts inline @context/#tag
+tokens (core/tagging.py) - adds the Alpine typeahead dropdown of existing tag
+names. `all_tags` (list of {name, is_context}) must be in context.
+{% endcomment %}
+<div class="relative" x-data="tagTypeahead({{ all_tags|safe }})">
+  <label class="block text-xs text-ink-soft mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  <div x-show="open" x-cloak
+       class="absolute left-0 right-0 z-10 mt-1 bg-surface border border-line rounded-md shadow-sm overflow-hidden">
+    <template x-for="(s, i) in suggestions" :key="s.prefix + s.name">
+      <button type="button" @mousedown.prevent="select(s)"
+              :class="i === activeIndex ? 'bg-water-soft' : ''"
+              class="w-full text-left px-3 py-1.5 text-sm font-mono hover:bg-water-soft">
+        <span x-text="s.prefix + s.name"></span>
+      </button>
+    </template>
+  </div>
+  {% for error in field.errors %}
+    <p class="text-red text-xs mt-1">{{ error }}</p>
+  {% endfor %}
+</div>

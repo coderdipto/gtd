@@ -1,0 +1,12 @@
+{% extends "components/focus_card_base.html" %}
+{% block wizard_heading %}Park it for someday{% endblock %}
+{% block wizard_helper %}Someday/Maybe lets you not do this without losing it.{% endblock %}
+{% block wizard_body %}
+<form method="post" class="space-y-3">
+  {% csrf_token %}
+  {% include "core/partials/field.html" with field=form.title %}
+  {% include "core/partials/field_tagged.html" with field=form.description all_tags=all_tags %}
+  {% include "core/partials/field.html" with field=form.area %}
+  <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save to Someday</button>
+</form>
+{% endblock %}

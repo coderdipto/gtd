@@ -27,8 +27,11 @@ def service_worker(request):
 # --- Capture (Step 3) ---
 
 
-def _capture_form_context():
-    return {"form": InboxItemForm(), "recent": InboxItem.objects.order_by("-created_at")[:3]}
+def _capture_form_context(form=None):
+    return {
+        "form": form or InboxItemForm(),
+        "recent": InboxItem.objects.order_by("-created_at")[:3],
+    }
 
 
 @login_required
@@ -45,19 +48,19 @@ def capture_modal(request):
 @require_POST
 def inbox_item_create(request):
     form = InboxItemForm(request.POST)
+    just_captured = False
     if form.is_valid():
         item = form.save(commit=False)
         item.source = "web"
         item.save()
-    context = _capture_form_context()
-    context["just_captured"] = form.is_valid()
-    context["from_modal"] = request.POST.get("from_modal") == "1"
-    template = (
-        "core/partials/capture_modal_form.html"
-        if context["from_modal"]
-        else "core/partials/capture_form.html"
-    )
-    return render(request, template, context)
+        just_captured = True
+        form = InboxItemForm()  # fresh form for the next capture
+    # On failure, the bound `form` (with its errors) is reused below instead
+    # of being discarded, so the user sees why nothing was captured.
+    context = _capture_form_context(form=form)
+    context["just_captured"] = just_captured
+    context["modal"] = request.POST.get("from_modal") == "1"
+    return render(request, "core/partials/capture_form.html", context)
 
 
 # --- Inbox (Step 3) ---

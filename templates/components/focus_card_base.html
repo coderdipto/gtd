@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% comment %}
+The signature focus-card chrome (docs/design.md §4): centered max-w-xl card,
+thin progress bar at the top edge, step counter, on a dimmed backdrop. Used by
+the clarify wizard (Epic 4) and, later, carry-over/review wizards (Epic 9).
+Screens extend this and fill wizard_heading / wizard_helper / wizard_body.
+Keyboard: digit keys 1-9 click the matching [data-wizard-key], Esc exits to
+the Inbox (nothing is lost - items simply stay unprocessed).
+{% endcomment %}
+{% block content %}
+<div class="min-h-full bg-ink/[0.03] flex items-start justify-center py-10 px-4"
+     x-data
+     @keydown.window.escape="window.location = '{% url 'inbox' %}'"
+     @keydown.window="if (['1','2','3','4','5','6','7','8','9'].includes($event.key)) { const el = document.querySelector('[data-wizard-key=\'' + $event.key + '\']'); if (el) el.click(); }">
+  <div class="w-full max-w-xl bg-surface border border-line rounded-md shadow-sm overflow-hidden">
+    <div class="h-0.5 bg-line">
+      <div class="h-0.5 bg-water transition-all" style="width: {% widthratio step total 100 %}%"></div>
+    </div>
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs uppercase tracking-wide text-ink-soft font-medium">{% block wizard_label %}Clarify{% endblock %}</span>
+        <span class="font-mono text-xs text-ink-soft">{{ step }} / {{ total }}</span>
+      </div>
+
+      {% if item %}
+        <div class="bg-paper border border-line rounded-md p-3 mb-4">
+          <p class="text-sm font-medium">{{ item.title }}</p>
+          {% if item.description %}<p class="text-sm text-ink-soft mt-1">{{ item.description }}</p>{% endif %}
+        </div>
+      {% endif %}
+
+      <h1 class="font-display font-bold text-2xl mb-1">{% block wizard_heading %}{% endblock %}</h1>
+      <div class="text-ink-soft text-sm mb-4">{% block wizard_helper %}{% endblock %}</div>
+
+      <div>
+        {% block wizard_body %}{% endblock %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

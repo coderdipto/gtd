@@ -1,0 +1,37 @@
+{% extends "components/focus_card_base.html" %}
+{% block wizard_heading %}Turn it into a project{% endblock %}
+{% block wizard_helper %}Every project needs a next action &mdash; the first subtask you add is flagged automatically.{% endblock %}
+{% block wizard_body %}
+{{ subtask_titles|json_script:"subtask-titles-data" }}
+<form method="post" class="space-y-3"
+      x-data="{ subtasks: JSON.parse(document.getElementById('subtask-titles-data').textContent) }">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="text-red text-sm">
+      {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+  {% endif %}
+  {% include "core/partials/field.html" with field=form.title %}
+  {% include "core/partials/field_tagged.html" with field=form.description all_tags=all_tags %}
+  {% include "core/partials/field.html" with field=form.area %}
+
+  <div>
+    <label class="block text-xs text-ink-soft mb-1">First subtasks</label>
+    <div class="space-y-2">
+      <template x-for="(subtask, i) in subtasks" :key="i">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-xs text-ink-soft w-4" x-text="i === 0 ? '•' : ''"></span>
+          <input type="text" name="subtask_title" x-model="subtasks[i]"
+                 :placeholder="i === 0 ? 'Next action (flagged automatically)' : 'Subtask'"
+                 class="flex-1 text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none">
+          <button type="button" x-show="subtasks.length > 1" @click="subtasks.splice(i, 1)"
+                  class="text-ink-soft hover:text-red text-xs focus-visible:ring-2 ring-water focus:outline-none rounded-md">&times;</button>
+        </div>
+      </template>
+    </div>
+    <button type="button" @click="subtasks.push('')" class="mt-2 text-xs text-water hover:underline focus-visible:ring-2 ring-water focus:outline-none rounded-md">+ add subtask</button>
+  </div>
+
+  <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save project</button>
+</form>
+{% endblock %}

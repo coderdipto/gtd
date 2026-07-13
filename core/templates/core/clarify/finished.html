@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Inbox zero · GTD{% endblock %}
+{% block content %}
+<div class="min-h-full flex items-center justify-center py-10 px-4">
+  <div class="w-full max-w-xl bg-surface border border-line rounded-md shadow-sm p-10 text-center">
+    <p class="font-display font-bold text-3xl mb-2">Inbox zero 🎉</p>
+    <p class="text-ink-soft text-sm mb-6">Everything's been decided. Nothing left to clarify.</p>
+    <a href="{% url 'today' %}" class="inline-flex h-11 px-4 items-center rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">
+      Back to Today
+    </a>
+  </div>
+</div>
+{% endblock %}

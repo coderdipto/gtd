@@ -7,11 +7,11 @@
     <button type="button"
             hx-post="{% url 'inbox_item_done' item.id %}"
             hx-target="#inbox-item-{{ item.id }}" hx-swap="outerHTML swap:150ms"
-            class="h-9 px-3 rounded-md border border-line text-sm hover:border-water hover:text-water"
+            class="h-9 px-3 rounded-md border border-line text-sm hover:border-water hover:text-water focus-visible:ring-2 ring-water focus:outline-none"
             title="Under 2 minutes? Do it now.">
       Done
     </button>
-    <a href="{% url 'inbox_process' %}" class="h-9 px-3 rounded-md bg-water text-white text-sm flex items-center">
+    <a href="{% url 'inbox_process' %}" class="h-9 px-3 rounded-md bg-water text-white text-sm flex items-center focus-visible:ring-2 ring-water focus:outline-none">
       Clarify
     </a>
   </div>

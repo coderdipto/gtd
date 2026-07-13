@@ -6,7 +6,7 @@
     <h1 class="font-display font-bold text-2xl">Inbox</h1>
     {% if items %}
       <a href="{% url 'inbox_process' %}"
-         class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium flex items-center gap-2">
+         class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium flex items-center gap-2 focus-visible:ring-2 ring-water focus:outline-none">
         Process inbox &rarr;
         <span class="font-mono text-xs bg-white/20 rounded-full px-2 py-0.5">{{ items|length }}</span>
       </a>
