@@ -30,20 +30,21 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 1 — Project scaffold, auth, PWA shell (M1)
 
-- [ ] Django 5.x project `gtd`, single app `core`, Python 3.12.
-- [ ] `django-environ` config, Postgres via `psycopg`; local `.env` + `.env.example`.
-- [ ] Tailwind standalone CLI wired to output committed `static/css/app.css` (no bundler); tokens from `design.md` §2 in `tailwind.config.js` `theme.extend` (never raw hex in templates); safelist stub for future dynamic-ish classes.
-- [ ] Self-hosted fonts in `static/fonts/` (Bricolage Grotesque 600/700, Inter 400/500/600, JetBrains Mono 400/500) — no Google Fonts CDN.
-- [ ] Vendor Alpine.js + HTMX into `static/js/` (no CDN, per no-build-pipeline + offline-friendly intent).
-- [ ] Django auth, single superuser via `createsuperuser`.
-- [ ] `LoginRequiredMiddleware` (Django 5.1+) covering every view except webhook + capture API routes.
-- [ ] Settings hygiene: `DEBUG=False` in prod, no `django-browser-reload` in prod requirements.
-- [ ] `manifest.json` (name "GTD", standalone display, icons 192/512).
-- [ ] Minimal service worker: cache app shell + `/capture`; explicitly no offline queue (v2).
-- [ ] `base.html`: desktop sidebar (w-60, per `design.md` §3) / mobile bottom tab bar (Inbox · Today · ＋ · Calendar · Review); global header trust strip (`inbox N · review Nd ago`, thresholds per `design.md` §9).
-- [ ] Vendor Lucide SVG icons into `templates/icons/` (no icon font, no CDN).
-- [ ] **Test:** smoke test — login works, base template renders.
-- [ ] **Rollback:** n/a (greenfield).
+- [x] Django 5.x project `gtd`, single app `core`, Python 3.12.
+- [x] `django-environ` config, Postgres via `psycopg`; local `.env` + `.env.example`. (Dev Postgres: existing shared `postgres-container` Docker instance, database `gtd` created, user `sudipto`.)
+- [x] Tailwind standalone CLI (v3.4.17, matches `tailwind.config.js`/safelist conventions in `design.md`) wired to output committed `static/css/app.css` (no bundler); tokens from `design.md` §2 in `tailwind.config.js` `theme.extend` (never raw hex in templates); safelist stub for future dynamic-ish classes.
+- [~] Self-hosted fonts in `static/fonts/` — `@font-face` rules wired in `static/css/input.css` but **actual woff2 binaries not yet sourced** (Bricolage Grotesque 600/700, Inter 400/500/600, JetBrains Mono 400/500). Follow-up needed before fonts actually render; currently falls back to system sans-serif/monospace.
+- [x] Vendor Alpine.js + HTMX into `static/js/` (no CDN); also vendored SortableJS early since Steps 5 & 9 need it.
+- [x] Django auth, single superuser via `createsuperuser` (username `sudipto`).
+- [x] `LoginRequiredMiddleware` (Django 5.1+) covering every view; webhook + capture API routes don't exist yet (Steps 3/8) so no exemption needed yet — add `@login_not_required` when those land.
+- [x] Settings hygiene: `DEBUG` from env (default False), no `django-browser-reload` in requirements.
+- [~] `manifest.json` (name "GTD", standalone display) — present at `static/manifest/manifest.json`, but **icons 192/512 PNGs not yet generated** (referenced paths currently 404).
+- [x] Minimal service worker: cache app shell + `/capture`; served from root path (`/service-worker.js`) for full-scope registration; explicitly no offline queue (v2).
+- [x] `base.html`: desktop sidebar (w-60) / mobile bottom tab bar (Inbox · Today · ＋ · Calendar · Review); global header trust strip stub (`inbox N · review Nd ago` — values hardcoded to defaults until Epic 2/5 wire real counts).
+- [x] Vendor Lucide SVG icons into `templates/icons/` (no icon font, no CDN) — 12 icons pulled for nav; more to be added per-screen as needed.
+- [x] **Test:** smoke test — anonymous redirected to login, authenticated request renders base template with expected content. `python manage.py test core` passes (2/2).
+- [x] **Rollback:** n/a (greenfield).
+- Note: all other nav routes (`/inbox`, `/tasks`, `/projects`, etc.) exist as named URLs pointing at a shared placeholder view/template so the shell nav doesn't 404 — real screens land in their own epics.
 
 ## Epic 2 — Data model (M1)
 
