@@ -1,9 +1,13 @@
+from datetime import datetime, time, timedelta
+
+from dateutil.rrule import rrulestr
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import Area, GoogleCredential, RecurringTemplate, Task
+from .google_calendar import GoogleCalendarClient, get_credential
+from .models import Area, RecurringTemplate, Task
 
 FREQUENCIES = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]
 WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
@@ -35,14 +39,49 @@ def parse_rrule(rrule_str):
     }
 
 
+def _next_occurrence_date(template, today):
+    """First date on/after today matching the template's RRULE - used as the
+    seed occurrence for its one recurring GCal event (solution-plan.md Step 7:
+    'one recurring GCal event ... mirroring the RRULE')."""
+    rule = rrulestr(f"RRULE:{template.rrule}", dtstart=datetime.combine(today, time.min))
+    next_dt = rule.after(datetime.combine(today, time.min), inc=True)
+    return next_dt.date() if next_dt else today
+
+
 def _sync_gcal_event(template):
-    # Calendar linkage (solution-plan.md Step 7) needs Epic 8's GoogleCredential
-    # + Calendar API client, which don't exist yet - every GCal call is gated
-    # on a connected credential (see task-breakdown.md Epic 8's rollback note),
-    # so this is a deliberate no-op until then.
-    if not GoogleCredential.objects.exists():
+    """Calendar linkage (solution-plan.md Step 7/8): a standing-block template
+    gets ONE recurring GCal event mirroring its RRULE (never per-instance
+    TimeBlocks). No-op when Google Calendar isn't connected."""
+    credential = get_credential()
+    if not credential:
         return
-    raise NotImplementedError("Google Calendar sync lands in Epic 8")
+    client = GoogleCalendarClient(credential)
+
+    has_standing_block = template.active and template.block_start_time and template.block_duration_min
+    if not has_standing_block:
+        if template.gcal_event_id:
+            client.delete_event(credential.gtd_calendar_id, template.gcal_event_id)
+            template.gcal_event_id = ""
+            template.save(update_fields=["gcal_event_id"])
+        return
+
+    today = timezone.localtime().date()
+    start = datetime.combine(_next_occurrence_date(template, today), template.block_start_time)
+    if timezone.is_naive(start):
+        start = timezone.make_aware(start)
+    end = start + timedelta(minutes=template.block_duration_min)
+    body = {
+        "summary": template.title,
+        "start": {"dateTime": start.isoformat()},
+        "end": {"dateTime": end.isoformat()},
+        "recurrence": [f"RRULE:{template.rrule}"],
+    }
+    if template.gcal_event_id:
+        client.patch_event(credential.gtd_calendar_id, template.gcal_event_id, body)
+    else:
+        result = client.insert_event(credential.gtd_calendar_id, body)
+        template.gcal_event_id = result.get("id", "")
+        template.save(update_fields=["gcal_event_id"])
 
 
 @login_required
@@ -91,8 +130,14 @@ def _save_template(request, template=None):
     rrule_str = build_rrule(freq, byday, interval)
 
     area_id = request.POST.get("area") or None
-    block_start_time = request.POST.get("block_start_time") or None
-    block_duration_min = request.POST.get("block_duration_min") or None
+    block_start_time_str = request.POST.get("block_start_time") or None
+    # Parsed to a real time object rather than left as the raw "HH:MM" string -
+    # Django's TimeField only coerces strings->time on the way out of the DB,
+    # not on plain attribute assignment, and _sync_gcal_event below needs a
+    # real time for datetime.combine() on this same in-memory instance.
+    block_start_time = time.fromisoformat(block_start_time_str) if block_start_time_str else None
+    block_duration_min_str = request.POST.get("block_duration_min") or None
+    block_duration_min = int(block_duration_min_str) if block_duration_min_str else None
 
     if template is None:
         template = RecurringTemplate()
@@ -101,7 +146,7 @@ def _save_template(request, template=None):
     template.rrule = rrule_str
     template.area_id = area_id
     template.block_start_time = block_start_time
-    template.block_duration_min = block_duration_min or None
+    template.block_duration_min = block_duration_min
     template.save()
     _sync_gcal_event(template)
     return redirect("recurring_detail", pk=template.id)
@@ -130,7 +175,7 @@ def recurring_deactivate(request, pk):
     template = get_object_or_404(RecurringTemplate, pk=pk)
     template.active = False
     template.save(update_fields=["active"])
-    _sync_gcal_event(template)  # no-op until Epic 8; will delete the GCal event then
+    _sync_gcal_event(template)  # deletes the GCal event if one exists
     return redirect("recurring_detail", pk=template.id)
 
 
@@ -140,6 +185,7 @@ def recurring_activate(request, pk):
     template = get_object_or_404(RecurringTemplate, pk=pk)
     template.active = True
     template.save(update_fields=["active"])
+    _sync_gcal_event(template)  # re-creates the GCal event if there's a standing block
     return redirect("recurring_detail", pk=template.id)
 
 

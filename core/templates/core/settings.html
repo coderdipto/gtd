@@ -40,5 +40,28 @@
       <li>Enable "Show in Share Sheet" and add a Siri phrase if you want voice capture.</li>
     </ol>
   </section>
+
+  <section class="bg-surface border border-line rounded-md p-4">
+    <h2 class="font-display font-semibold text-lg mb-2">Google Calendar</h2>
+    {% if credential %}
+      <p class="text-sm mb-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono bg-water-soft text-water">Connected</span>
+      </p>
+      <form method="post" action="{% url 'google_disconnect' %}" hx-confirm="Disconnect Google Calendar? Time-blocks stay local-only afterward.">
+        {% csrf_token %}
+        <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-red hover:text-red focus-visible:ring-2 ring-water focus:outline-none">Disconnect Google</button>
+      </form>
+    {% else %}
+      <p class="text-sm mb-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono bg-line text-ink-soft">Not connected</span>
+      </p>
+      {% if google_configured %}
+        <a href="{% url 'google_connect' %}"
+           class="h-9 px-3 inline-flex items-center rounded-md bg-water text-white text-sm focus-visible:ring-2 ring-water focus:outline-none">Connect Google</a>
+      {% else %}
+        <p class="text-ink-soft text-xs">Set <code class="font-mono">GOOGLE_CLIENT_ID</code>/<code class="font-mono">GOOGLE_CLIENT_SECRET</code>/<code class="font-mono">FERNET_KEY</code> in <code class="font-mono">.env</code> first (see <code class="font-mono">.env.example</code>).</p>
+      {% endif %}
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

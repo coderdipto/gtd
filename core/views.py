@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import InboxItemForm
+from .google_calendar import get_credential, google_configured
 from .models import CaptureToken, InboxItem
 
 
@@ -88,7 +89,11 @@ def inbox_item_done(request, pk):
 @login_required
 def settings_page(request):
     tokens = CaptureToken.objects.order_by("-id")
-    return render(request, "core/settings.html", {"tokens": tokens})
+    return render(
+        request,
+        "core/settings.html",
+        {"tokens": tokens, "credential": get_credential(), "google_configured": google_configured()},
+    )
 
 
 @login_required

@@ -1,0 +1,51 @@
+/* FullCalendar 6 token overrides (docs/design.md §2/§5) - loaded via CDN
+   (the one deliberate exception to the no-CDN rule, confirmed in
+   docs/task-breakdown.md's planning findings). Kills FC's default theme
+   borders/colors in favor of the app's own tokens. */
+
+.fc {
+  --fc-border-color: #E5E7EB; /* line */
+  --fc-today-bg-color: rgba(15, 118, 110, 0.04); /* water @ 4% */
+  --fc-neutral-bg-color: #FFFFFF; /* surface */
+  --fc-page-bg-color: #FAFAF8; /* paper */
+  font-family: "Inter", sans-serif;
+  font-size: 0.875rem;
+}
+
+.fc .fc-toolbar-title {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 700;
+}
+
+.fc .fc-timegrid-slot-label,
+.fc .fc-col-header-cell-cushion {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+}
+
+.fc-event {
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.fc .fc-button {
+  background-color: #FFFFFF;
+  border-color: #E5E7EB;
+  color: #1F2937;
+  text-transform: none;
+  box-shadow: none;
+}
+
+.fc .fc-button:hover {
+  border-color: #0F766E;
+  color: #0F766E;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: #0F766E;
+  border-color: #0F766E;
+  color: #FFFFFF;
+}

@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from .google_calendar import get_credential
 from .models import Task
 from .tagging import sync_tags_from_text
 
@@ -61,6 +62,8 @@ def project_detail(request, pk):
             "markers": markers,
             "flag_urls": flag_urls,
             "badge": _project_state_badge(project),
+            "blocks": project.blocks.order_by("start"),
+            "gcal_connected": get_credential() is not None,
         },
     )
 

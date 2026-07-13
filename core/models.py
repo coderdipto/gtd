@@ -202,10 +202,20 @@ class Task(models.Model):
         if self.is_project and not force and self.subtasks.incomplete().exists():
             return False
         now = timezone.now()
+        completed_subtasks = list(self.subtasks.incomplete()) if self.is_project else []
         if self.is_project:
             self.subtasks.incomplete().update(completed_at=now)
         self.completed_at = now
         self.save(update_fields=["completed_at"])
+
+        # Deferred import: core.timeblocks -> core.google_calendar -> core.models
+        # would be circular at module load time, but is fine once everything's
+        # already imported (i.e. by the time complete() actually runs).
+        from .timeblocks import retitle_task_blocks
+
+        retitle_task_blocks(self)
+        for subtask in completed_subtasks:
+            retitle_task_blocks(subtask)
         return True
 
 

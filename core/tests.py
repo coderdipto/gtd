@@ -1,7 +1,9 @@
 import json
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone as dt_timezone
+from unittest.mock import MagicMock, patch
 
+from cryptography.fernet import Fernet
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.management import call_command
@@ -10,9 +12,29 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import Area, CaptureToken, InboxItem, Note, RecurringTemplate, Tag, Task, TimeBlock
+from core.models import (
+    Area,
+    CaptureToken,
+    GoogleCredential,
+    InboxItem,
+    Note,
+    RecurringTemplate,
+    SyncChannel,
+    Tag,
+    Task,
+    TimeBlock,
+)
 from core.recurring import build_rrule, parse_rrule
 from core.tagging import extract_tags, sync_tags_from_text
+
+_TEST_FERNET_KEY = Fernet.generate_key().decode()
+
+gcal_settings = override_settings(
+    GOOGLE_CLIENT_ID="test-client-id",
+    GOOGLE_CLIENT_SECRET="test-client-secret",
+    GOOGLE_OAUTH_REDIRECT="http://testserver/google/callback",
+    FERNET_KEY=_TEST_FERNET_KEY,
+)
 
 
 class SmokeTest(TestCase):
@@ -959,3 +981,476 @@ class RecurringScreensSmokeTests(TestCase):
         self.client.post(reverse("recurring_activate", args=[template.id]))
         template.refresh_from_db()
         self.assertTrue(template.active)
+
+
+class RecurringTemplateGcalLinkageTests(TestCase):
+    """core/recurring.py::_sync_gcal_event - the RecurringTemplate's own
+    standing-block GCal event (distinct from per-instance TimeBlocks, which
+    are deliberately never created for recurring tasks)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_noop_without_credential(self):
+        response = self.client.post(
+            reverse("recurring_create"),
+            {
+                "title": "Standup",
+                "freq": "DAILY",
+                "block_start_time": "09:00",
+                "block_duration_min": "15",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        template = RecurringTemplate.objects.get(title="Standup")
+        self.assertEqual(template.gcal_event_id, "")
+
+    @gcal_settings
+    @patch("core.recurring.GoogleCalendarClient.insert_event")
+    def test_standing_block_creates_recurring_gcal_event(self, mock_insert):
+        GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        mock_insert.return_value = {"id": "recurring-evt-1"}
+        response = self.client.post(
+            reverse("recurring_create"),
+            {
+                "title": "Standup",
+                "freq": "DAILY",
+                "block_start_time": "09:00",
+                "block_duration_min": "15",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        template = RecurringTemplate.objects.get(title="Standup")
+        self.assertEqual(template.gcal_event_id, "recurring-evt-1")
+        body = mock_insert.call_args.args[1]
+        self.assertEqual(body["recurrence"], ["RRULE:FREQ=DAILY"])
+
+    @gcal_settings
+    @patch("core.recurring.GoogleCalendarClient.delete_event")
+    def test_deactivating_deletes_the_gcal_event(self, mock_delete):
+        GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        template = RecurringTemplate.objects.create(
+            title="Standup",
+            rrule="FREQ=DAILY",
+            block_start_time="09:00",
+            block_duration_min=15,
+            gcal_event_id="recurring-evt-1",
+        )
+        self.client.post(reverse("recurring_deactivate", args=[template.id]))
+        mock_delete.assert_called_once_with("cal1", "recurring-evt-1")
+        template.refresh_from_db()
+        self.assertEqual(template.gcal_event_id, "")
+
+    @gcal_settings
+    @patch("core.recurring.GoogleCalendarClient.patch_event")
+    def test_editing_patches_existing_gcal_event(self, mock_patch):
+        GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        template = RecurringTemplate.objects.create(
+            title="Standup",
+            rrule="FREQ=DAILY",
+            block_start_time="09:00",
+            block_duration_min=15,
+            gcal_event_id="recurring-evt-1",
+        )
+        self.client.post(
+            reverse("recurring_edit", args=[template.id]),
+            {
+                "title": "Standup (updated)",
+                "freq": "DAILY",
+                "block_start_time": "10:00",
+                "block_duration_min": "30",
+            },
+        )
+        mock_patch.assert_called_once()
+        self.assertEqual(mock_patch.call_args.args[:2], ("cal1", "recurring-evt-1"))
+
+    def test_template_without_standing_block_never_calls_gcal(self):
+        with gcal_settings, patch("core.recurring.GoogleCalendarClient.insert_event") as mock_insert:
+            GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+            self.client.post(reverse("recurring_create"), {"title": "No block", "freq": "WEEKLY"})
+            mock_insert.assert_not_called()
+
+
+@gcal_settings
+class EncryptionTests(TestCase):
+    def test_round_trip(self):
+        from core.google_calendar import decrypt_token, encrypt_token
+
+        ciphertext = encrypt_token("my-refresh-token")
+        self.assertEqual(decrypt_token(ciphertext), "my-refresh-token")
+
+    def test_encrypt_without_fernet_key_raises(self):
+        from core.google_calendar import encrypt_token
+
+        with override_settings(FERNET_KEY=""):
+            with self.assertRaises(RuntimeError):
+                encrypt_token("x")
+
+
+@gcal_settings
+class GoogleConnectFlowTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_connect_redirects_to_google_when_configured(self):
+        response = self.client.get(reverse("google_connect"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("accounts.google.com", response.url)
+
+    def test_connect_rejected_when_not_configured(self):
+        with override_settings(GOOGLE_CLIENT_ID=""):
+            response = self.client.get(reverse("google_connect"))
+            self.assertEqual(response.status_code, 400)
+
+    def test_callback_rejects_state_mismatch(self):
+        session = self.client.session
+        session["google_oauth_state"] = "expected-state"
+        session.save()
+        response = self.client.get(reverse("google_callback"), {"state": "wrong-state", "code": "abc"})
+        self.assertEqual(response.status_code, 400)
+
+    @patch("core.google_calendar.register_watch_channel")
+    @patch("core.google_calendar.GoogleCalendarClient.create_gtd_calendar")
+    @patch("core.google_calendar._build_flow")
+    def test_callback_success_creates_credential_and_calendar(self, mock_build_flow, mock_create_cal, mock_register):
+        session = self.client.session
+        session["google_oauth_state"] = "matching-state"
+        session.save()
+
+        mock_flow = MagicMock()
+        mock_flow.credentials.refresh_token = "the-refresh-token"
+        mock_build_flow.return_value = mock_flow
+        mock_create_cal.return_value = "gtd-calendar-id"
+
+        response = self.client.get(reverse("google_callback"), {"state": "matching-state", "code": "auth-code"})
+        self.assertEqual(response.status_code, 302)
+
+        credential = GoogleCredential.objects.get()
+        self.assertEqual(credential.gtd_calendar_id, "gtd-calendar-id")
+        from core.google_calendar import decrypt_token
+
+        self.assertEqual(decrypt_token(credential.refresh_token), "the-refresh-token")
+        mock_register.assert_called_once()
+
+    def test_disconnect_wipes_credential_and_channels(self):
+        credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        SyncChannel.objects.create(
+            calendar_id="cal1", channel_id="11111111-1111-1111-1111-111111111111", resource_id="res1", expiration=timezone.now()
+        )
+        self.client.post(reverse("google_disconnect"))
+        self.assertFalse(GoogleCredential.objects.exists())
+        self.assertFalse(SyncChannel.objects.exists())
+        credential  # keep reference alive for clarity
+
+
+@gcal_settings
+class GoogleCalendarClientTests(TestCase):
+    def setUp(self):
+        self.credential = GoogleCredential.objects.create(
+            refresh_token=b"irrelevant-for-this-test", gtd_calendar_id="cal1"
+        )
+
+    def _client_with_mocked_service(self):
+        from core.google_calendar import GoogleCalendarClient
+
+        client = GoogleCalendarClient(self.credential)
+        client._service = MagicMock()
+        return client
+
+    def test_insert_event_calls_events_insert(self):
+        client = self._client_with_mocked_service()
+        client._service.return_value.events.return_value.insert.return_value.execute.return_value = {"id": "evt1"}
+        result = client.insert_event("cal1", {"summary": "Test"})
+        client._service.return_value.events.return_value.insert.assert_called_once_with(
+            calendarId="cal1", body={"summary": "Test"}
+        )
+        self.assertEqual(result["id"], "evt1")
+
+    def test_patch_event_calls_events_patch(self):
+        client = self._client_with_mocked_service()
+        client._service.return_value.events.return_value.patch.return_value.execute.return_value = {}
+        client.patch_event("cal1", "evt1", {"summary": "✓ Done"})
+        client._service.return_value.events.return_value.patch.assert_called_once_with(
+            calendarId="cal1", eventId="evt1", body={"summary": "✓ Done"}
+        )
+
+    def test_delete_event_calls_events_delete(self):
+        client = self._client_with_mocked_service()
+        client._service.return_value.events.return_value.delete.return_value.execute.return_value = {}
+        client.delete_event("cal1", "evt1")
+        client._service.return_value.events.return_value.delete.assert_called_once_with(
+            calendarId="cal1", eventId="evt1"
+        )
+
+
+@gcal_settings
+class WebhookValidationTests(TestCase):
+    def setUp(self):
+        self.credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        self.channel = SyncChannel.objects.create(
+            calendar_id="cal1", channel_id="11111111-1111-1111-1111-111111111111", resource_id="res1", expiration=timezone.now()
+        )
+
+    def test_unknown_channel_rejected(self):
+        response = self.client.post(
+            reverse("gcal_webhook"), HTTP_X_GOOG_CHANNEL_ID="nope", HTTP_X_GOOG_RESOURCE_ID="nope"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    @patch("core.google_calendar.sync_calendar")
+    def test_valid_channel_triggers_sync(self, mock_sync):
+        response = self.client.post(
+            reverse("gcal_webhook"),
+            HTTP_X_GOOG_CHANNEL_ID="11111111-1111-1111-1111-111111111111",
+            HTTP_X_GOOG_RESOURCE_ID="res1",
+        )
+        self.assertEqual(response.status_code, 200)
+        mock_sync.assert_called_once_with(self.credential)
+
+    def test_webhook_is_login_exempt(self):
+        # No client.login() anywhere in this class - a login-required endpoint
+        # would 302 to the login page instead of returning 404/200.
+        response = self.client.post(reverse("gcal_webhook"))
+        self.assertNotEqual(response.status_code, 302)
+
+
+@gcal_settings
+class SyncConflictAndResyncTests(TestCase):
+    def setUp(self):
+        self.credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        self.task = Task.objects.create(title="Deep work")
+
+    def _event(self, event_id, start, end, updated, status=None):
+        event = {
+            "id": event_id,
+            "start": {"dateTime": start},
+            "end": {"dateTime": end},
+            "updated": updated,
+            "etag": '"etag1"',
+        }
+        if status:
+            event["status"] = status
+        return event
+
+    def test_gcal_wins_on_tie(self):
+        from core.google_calendar import _apply_event_to_block
+
+        tie_time = datetime(2026, 7, 15, 10, 0, tzinfo=dt_timezone.utc)
+        block = TimeBlock.objects.create(
+            task=self.task,
+            start=datetime(2026, 7, 15, 9, 0, tzinfo=dt_timezone.utc),
+            end=datetime(2026, 7, 15, 9, 30, tzinfo=dt_timezone.utc),
+            gcal_event_id="evt1",
+            last_synced_at=tie_time,
+        )
+        event = self._event("evt1", "2026-07-15T14:00:00+00:00", "2026-07-15T14:30:00+00:00", "2026-07-15T10:00:00Z")
+        _apply_event_to_block(event)
+        block.refresh_from_db()
+        self.assertEqual(block.start.hour, 14)
+
+    def test_local_wins_when_strictly_newer(self):
+        from core.google_calendar import _apply_event_to_block
+
+        block = TimeBlock.objects.create(
+            task=self.task,
+            start=datetime(2026, 7, 15, 9, 0, tzinfo=dt_timezone.utc),
+            end=datetime(2026, 7, 15, 9, 30, tzinfo=dt_timezone.utc),
+            gcal_event_id="evt1",
+            last_synced_at=datetime(2026, 7, 15, 12, 0, tzinfo=dt_timezone.utc),
+        )
+        event = self._event("evt1", "2026-07-15T14:00:00+00:00", "2026-07-15T14:30:00+00:00", "2026-07-15T10:00:00Z")
+        _apply_event_to_block(event)
+        block.refresh_from_db()
+        self.assertEqual(block.start.hour, 9)  # untouched - our side was newer
+
+    def test_cancelled_status_deletes_block(self):
+        from core.google_calendar import _apply_event_to_block
+
+        block = TimeBlock.objects.create(
+            task=self.task,
+            start=timezone.now(),
+            end=timezone.now() + timedelta(hours=1),
+            gcal_event_id="evt1",
+        )
+        event = self._event(
+            "evt1", "2026-07-15T14:00:00+00:00", "2026-07-15T14:30:00+00:00", "2026-07-15T10:00:00Z", status="cancelled"
+        )
+        _apply_event_to_block(event)
+        self.assertFalse(TimeBlock.objects.filter(id=block.id).exists())
+
+    def test_unmatched_event_is_ignored(self):
+        from core.google_calendar import _apply_event_to_block
+
+        event = self._event("no-such-event", "2026-07-15T14:00:00+00:00", "2026-07-15T14:30:00+00:00", "2026-07-15T10:00:00Z")
+        _apply_event_to_block(event)  # should not raise
+
+    @patch("core.google_calendar.GoogleCalendarClient.list_events")
+    def test_410_triggers_full_resync(self, mock_list_events):
+        from googleapiclient.errors import HttpError
+
+        from core.google_calendar import sync_calendar
+
+        SyncChannel.objects.create(
+            calendar_id="cal1", channel_id="11111111-1111-1111-1111-111111111111", resource_id="res1", expiration=timezone.now(),
+            sync_token="stale-token",
+        )
+        error_resp = MagicMock(status=410)
+        mock_list_events.side_effect = [HttpError(error_resp, b"Gone"), {"items": [], "nextSyncToken": "fresh"}]
+
+        sync_calendar(self.credential)
+        self.assertEqual(mock_list_events.call_count, 2)
+        first_call_kwargs = mock_list_events.call_args_list[0].kwargs
+        second_call_kwargs = mock_list_events.call_args_list[1].kwargs
+        self.assertEqual(first_call_kwargs.get("sync_token"), "stale-token")
+        self.assertIsNone(second_call_kwargs.get("sync_token"))
+
+
+class MissedBlockCommandTests(TestCase):
+    def test_past_scheduled_block_incomplete_task_becomes_missed(self):
+        task = Task.objects.create(title="Gym")
+        block = TimeBlock.objects.create(
+            task=task, start=timezone.now() - timedelta(hours=2), end=timezone.now() - timedelta(hours=1)
+        )
+        call_command("detect_missed_blocks")
+        block.refresh_from_db()
+        task.refresh_from_db()
+        self.assertEqual(block.status, TimeBlock.Status.MISSED)
+        self.assertEqual(task.missed_block_count, 1)
+
+    def test_completed_task_block_not_marked_missed(self):
+        task = Task.objects.create(title="Gym", completed_at=timezone.now())
+        block = TimeBlock.objects.create(
+            task=task, start=timezone.now() - timedelta(hours=2), end=timezone.now() - timedelta(hours=1)
+        )
+        call_command("detect_missed_blocks")
+        block.refresh_from_db()
+        self.assertEqual(block.status, TimeBlock.Status.SCHEDULED)
+
+    def test_future_block_untouched(self):
+        task = Task.objects.create(title="Gym")
+        block = TimeBlock.objects.create(
+            task=task, start=timezone.now() + timedelta(hours=1), end=timezone.now() + timedelta(hours=2)
+        )
+        call_command("detect_missed_blocks")
+        block.refresh_from_db()
+        self.assertEqual(block.status, TimeBlock.Status.SCHEDULED)
+
+
+class RetitleOnCompleteTests(TestCase):
+    def test_completing_task_marks_blocks_completed_without_credential(self):
+        task = Task.objects.create(title="Write report")
+        block = TimeBlock.objects.create(task=task, start=timezone.now(), end=timezone.now() + timedelta(hours=1))
+        task.complete()
+        block.refresh_from_db()
+        self.assertEqual(block.status, TimeBlock.Status.COMPLETED)
+
+    @gcal_settings
+    @patch("core.timeblocks.GoogleCalendarClient.patch_event")
+    def test_completing_task_retitles_gcal_event_when_connected(self, mock_patch):
+        credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        task = Task.objects.create(title="Write report")
+        TimeBlock.objects.create(
+            task=task, start=timezone.now(), end=timezone.now() + timedelta(hours=1), gcal_event_id="evt1"
+        )
+        task.complete()
+        mock_patch.assert_called_once_with("cal1", "evt1", {"summary": "✓ Write report"})
+        credential.refresh_from_db()  # keep reference alive for clarity
+
+
+class TimeblockViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.task = Task.objects.create(title="Focus block")
+
+    def test_create_without_credential_is_local_only(self):
+        response = self.client.post(
+            reverse("timeblock_create", args=[self.task.id]),
+            {"start": "2026-07-15T09:00", "end": "2026-07-15T10:00"},
+        )
+        self.assertEqual(response.status_code, 200)
+        block = TimeBlock.objects.get(task=self.task)
+        self.assertEqual(block.gcal_event_id, "")
+
+    @gcal_settings
+    @patch("core.timeblocks.GoogleCalendarClient.insert_event")
+    def test_create_with_credential_stores_gcal_event_id(self, mock_insert):
+        GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        mock_insert.return_value = {"id": "evt1", "etag": '"e1"'}
+        self.client.post(
+            reverse("timeblock_create", args=[self.task.id]),
+            {"start": "2026-07-15T09:00", "end": "2026-07-15T10:00"},
+        )
+        block = TimeBlock.objects.get(task=self.task)
+        self.assertEqual(block.gcal_event_id, "evt1")
+
+    def test_update_changes_start_end(self):
+        block = TimeBlock.objects.create(
+            task=self.task, start=timezone.now(), end=timezone.now() + timedelta(hours=1)
+        )
+        self.client.post(
+            reverse("timeblock_update", args=[block.id]),
+            {"start": "2026-07-16T09:00:00+00:00", "end": "2026-07-16T10:00:00+00:00"},
+        )
+        block.refresh_from_db()
+        self.assertEqual(block.start.day, 16)
+
+    def test_delete_removes_block(self):
+        block = TimeBlock.objects.create(
+            task=self.task, start=timezone.now(), end=timezone.now() + timedelta(hours=1)
+        )
+        self.client.post(reverse("timeblock_delete", args=[block.id]))
+        self.assertFalse(TimeBlock.objects.filter(id=block.id).exists())
+
+
+class CalendarScreenSmokeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_calendar_page_renders(self):
+        response = self.client.get(reverse("calendar_page"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_events_json_includes_blocks(self):
+        task = Task.objects.create(title="Focus block")
+        TimeBlock.objects.create(task=task, start=timezone.now(), end=timezone.now() + timedelta(hours=1))
+        response = self.client.get(reverse("calendar_events_json"))
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["title"], "Focus block")
+
+    def test_settings_shows_not_connected_by_default(self):
+        response = self.client.get(reverse("settings"))
+        self.assertContains(response, "Not connected")
+
+
+class RenewChannelsAndSyncCommandTests(TestCase):
+    def test_no_credential_is_a_safe_noop(self):
+        call_command("renew_gcal_channels")
+        call_command("sync_gcal")  # neither should raise
+
+    @gcal_settings
+    @patch("core.management.commands.renew_gcal_channels.register_watch_channel")
+    def test_expiring_channel_gets_renewed(self, mock_register):
+        credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        SyncChannel.objects.create(
+            calendar_id="cal1",
+            channel_id="11111111-1111-1111-1111-111111111111",
+            resource_id="res1",
+            expiration=timezone.now() + timedelta(hours=1),  # well within the 48h renewal window
+        )
+        call_command("renew_gcal_channels")
+        mock_register.assert_called_once()
+        self.assertFalse(SyncChannel.objects.filter(channel_id="11111111-1111-1111-1111-111111111111").exists())
+        credential.refresh_from_db()  # keep reference alive for clarity
+
+    @gcal_settings
+    @patch("core.management.commands.sync_gcal.sync_calendar")
+    def test_sync_gcal_calls_sync_when_connected(self, mock_sync):
+        credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        call_command("sync_gcal")
+        mock_sync.assert_called_once_with(credential)

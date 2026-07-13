@@ -2,7 +2,7 @@ from functools import partial
 
 from django.urls import path
 
-from . import clarify, lists, notes, projects, recurring, tags, views
+from . import clarify, google_calendar, lists, notes, projects, recurring, tags, timeblocks, views
 
 # Named routes referenced by base.html nav. Real implementations land in
 # their own epics (see docs/task-breakdown.md); until then each renders
@@ -79,6 +79,10 @@ urlpatterns = [
     path("settings/", views.settings_page, name="settings"),
     path("settings/tokens/", views.capture_token_create, name="capture_token_create"),
     path("settings/tokens/<int:pk>/revoke/", views.capture_token_revoke, name="capture_token_revoke"),
+    path("settings/google/connect/", google_calendar.google_connect, name="google_connect"),
+    path("google/callback", google_calendar.google_callback, name="google_callback"),
+    path("settings/google/disconnect/", google_calendar.google_disconnect, name="google_disconnect"),
+    path("gcal/webhook", google_calendar.gcal_webhook, name="gcal_webhook"),
     path("trash/", lists.trash_view, name="trash"),
     path("tasks/<int:pk>/restore/", lists.task_restore, name="task_restore"),
     path("tasks/<int:pk>/purge/", lists.task_purge, name="task_purge"),
@@ -88,7 +92,11 @@ urlpatterns = [
     path("tasks/<int:pk>/flag-next/", lists.task_flag_next, name="task_flag_next"),
     path("tasks/<int:pk>/horizon/<str:horizon>/", lists.task_set_horizon, name="task_set_horizon"),
     path("tasks/<int:pk>/reorder/", lists.task_reorder, name="task_reorder"),
-    path("calendar/", partial(views.stub, title="Calendar"), name="calendar_page"),
+    path("calendar/", timeblocks.calendar_page, name="calendar_page"),
+    path("calendar/events.json", timeblocks.calendar_events_json, name="calendar_events_json"),
+    path("tasks/<int:task_pk>/blocks/", timeblocks.timeblock_create, name="timeblock_create"),
+    path("blocks/<int:pk>/update/", timeblocks.timeblock_update, name="timeblock_update"),
+    path("blocks/<int:pk>/delete/", timeblocks.timeblock_delete, name="timeblock_delete"),
     path("service-worker.js", views.service_worker, name="service_worker"),
     path("", lists.today_view, name="home"),
 ]

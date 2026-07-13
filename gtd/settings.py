@@ -113,3 +113,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Settings hygiene (lesson from tracker.sudipto.dev): DEBUG must be False in prod,
 # no django-browser-reload in prod requirements. See requirements/ split.
+
+# Google Calendar (Step 8). All blank by default - every GCal call in
+# core/google_calendar.py is gated on a connected GoogleCredential existing,
+# so an unconfigured install just shows "Not connected" and does nothing.
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+GOOGLE_OAUTH_REDIRECT = env("GOOGLE_OAUTH_REDIRECT", default="http://localhost:8000/google/callback")
+# Fernet key encrypting GoogleCredential.refresh_token at rest. Generate one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+FERNET_KEY = env("FERNET_KEY", default="")

@@ -58,7 +58,35 @@
 
   <div class="mb-6">
     <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Calendar time</h2>
-    <p class="text-ink-soft text-sm">Available once Google Calendar is connected (Epic 8).</p>
+    {% if not gcal_connected %}
+      <p class="text-ink-soft text-xs mb-2">Not synced to Google Calendar - blocks stay local-only until you <a href="{% url 'settings' %}" class="text-water hover:underline">connect it</a>.</p>
+    {% endif %}
+    <div class="space-y-1 mb-3">
+      {% for block in blocks %}
+        <div class="flex items-center justify-between text-sm py-1 font-mono">
+          <span class="{% if block.status == 'missed' %}text-red{% elif block.status == 'completed' %}text-ink-soft{% endif %}">
+            {{ block.start|date:"D d M H:i" }}–{{ block.end|date:"H:i" }}
+            {% if block.status == 'missed' %} · missed{% elif block.status == 'completed' %} · done{% endif %}
+          </span>
+          {% if block.status == 'scheduled' %}
+            <form method="post" action="{% url 'timeblock_delete' block.id %}">
+              {% csrf_token %}
+              <button type="submit" class="text-red text-xs hover:underline">Remove</button>
+            </form>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-ink-soft text-sm">No blocks scheduled.</p>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'timeblock_create' project.id %}" class="flex items-center gap-2 flex-wrap">
+      {% csrf_token %}
+      <input type="datetime-local" name="start" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+      <span class="text-ink-soft text-xs">to</span>
+      <input type="datetime-local" name="end" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+      <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Add block</button>
+    </form>
+    <p class="text-ink-soft text-xs mt-2">Full drag/resize week view is on the <a href="{% url 'calendar_page' %}" class="text-water hover:underline">Calendar page</a>.</p>
   </div>
 
   <p class="text-ink-soft text-xs font-mono">

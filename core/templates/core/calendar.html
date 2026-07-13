@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Calendar · GTD{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/calendar.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-1">Calendar</h1>
+  {% if not credential %}
+    <p class="text-ink-soft text-sm mb-4">
+      Not connected — time-blocks stay local-only until you
+      <a href="{% url 'settings' %}" class="text-water hover:underline">connect Google Calendar</a>.
+    </p>
+  {% endif %}
+  <div id="fc-calendar"></div>
+</div>
+<script>
+  document.addEventListener("htmx:load", function (evt) {
+    var el = document.getElementById("fc-calendar");
+    if (!el || el.dataset.fcInit) return;
+    el.dataset.fcInit = "1";
+    var updateUrlTemplate = "{% url 'timeblock_update' 0 %}"; // "0" swapped for the real block id below
+    function patchBlock(event) {
+      var blockId = event.id.replace("block-", "");
+      var url = updateUrlTemplate.replace("/0/", "/" + blockId + "/");
+      htmx.ajax("POST", url, {
+        values: { start: event.start.toISOString(), end: event.end.toISOString() },
+        swap: "none",
+      });
+    }
+    var calendar = new FullCalendar.Calendar(el, {
+      initialView: "timeGridWeek",
+      headerToolbar: { left: "prev,next today", center: "title", right: "timeGridWeek" },
+      slotMinTime: "06:00:00",
+      slotMaxTime: "22:00:00",
+      height: "auto",
+      events: "{% url 'calendar_events_json' %}",
+      // Only existing blocks (`editable: true` per-event from calendar_events_json)
+      // can be dragged/resized here - creating a new block needs a task to
+      // attach it to, so that only happens from a project's "Calendar time" panel.
+      editable: true,
+      eventDrop: function (info) { patchBlock(info.event); },
+      eventResize: function (info) { patchBlock(info.event); },
+    });
+    calendar.render();
+  });
+</script>
+{% endblock %}
