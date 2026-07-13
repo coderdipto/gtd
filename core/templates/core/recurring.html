@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Recurring · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between gap-3 mb-4">
+    <h1 class="font-display font-bold text-2xl">Recurring</h1>
+    <a href="{% url 'recurring_create' %}"
+       class="h-9 px-3 rounded-md bg-water text-white text-sm font-medium flex items-center focus-visible:ring-2 ring-water focus:outline-none">
+      + New recurring task
+    </a>
+  </div>
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for template in templates %}
+      <a href="{% url 'recurring_detail' template.id %}" class="flex items-center justify-between gap-3 py-3 px-1 hover:bg-water-soft/30 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+        <div class="min-w-0">
+          <p class="text-sm font-medium truncate">{{ template.title }}</p>
+          <p class="font-mono text-xs text-ink-soft">{{ template.rrule }}</p>
+        </div>
+        {% if not template.active %}<span class="text-xs text-ink-soft shrink-0">Inactive</span>{% endif %}
+      </a>
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/calendar.svg" heading="Nothing recurring yet." body="Set up a repeating task - a rule builder generates its occurrences automatically." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

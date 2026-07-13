@@ -55,6 +55,7 @@ docs/design.md §4 task_row.html. Context:
       {% if task.carried_over_count %}{% badge "carried_over" n=task.carried_over_count %}{% endif %}
       {% if task.missed_block_count %}{% badge "missed" n=task.missed_block_count %}{% endif %}
       {% if task.q2_active %}{% badge "q2" %}{% endif %}
+      {% if task.is_overdue_recurring %}{% badge "overdue" text=task.overdue_since_label %}{% endif %}
       {% if waiting_days != None %}{% badge "waiting" n=waiting_days overdue=waiting_overdue %}{% endif %}
     </div>
     {% if task.tags.all %}

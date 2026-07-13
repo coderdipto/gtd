@@ -116,6 +116,13 @@ class Task(models.Model):
                 name="no_project_subtask",
                 check=~Q(is_project=True) | Q(parent__isnull=True),
             ),
+            # materialize_recurring idempotence (solution-plan.md Step 7): running
+            # the command twice for the same template+date must not double-create.
+            models.UniqueConstraint(
+                fields=["recurring_template", "occurrence_date"],
+                condition=Q(recurring_template__isnull=False),
+                name="unique_recurring_occurrence",
+            ),
         ]
         indexes = [
             models.Index(fields=["list", "horizon"]),
@@ -162,6 +169,19 @@ class Task(models.Model):
             return 0
         done = self.subtasks.filter(completed_at__isnull=False).count()
         return round(100 * done / total)
+
+    @property
+    def is_overdue_recurring(self):
+        """Recurring instance whose occurrence_date has passed and is still
+        incomplete (solution-plan.md Step 7, Decision #8: piles up, never
+        replaces the prior instance)."""
+        if not self.recurring_template_id or not self.occurrence_date or self.completed_at:
+            return False
+        return self.occurrence_date < timezone.localtime().date()
+
+    @property
+    def overdue_since_label(self):
+        return f"overdue since {self.occurrence_date:%d %b}"
 
     @property
     def q2_active(self):

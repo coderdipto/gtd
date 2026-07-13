@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}{{ template.title }} · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between gap-3 mb-1">
+    <h1 class="font-display font-bold text-2xl truncate">{{ template.title }}</h1>
+    <div class="flex items-center gap-2 shrink-0">
+      <a href="{% url 'recurring_edit' template.id %}"
+         class="h-9 px-3 rounded-md border border-line text-sm hover:border-water focus-visible:ring-2 ring-water focus:outline-none">Edit</a>
+      {% if template.active %}
+        <form method="post" action="{% url 'recurring_deactivate' template.id %}">
+          {% csrf_token %}
+          <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-red hover:text-red focus-visible:ring-2 ring-water focus:outline-none">Deactivate</button>
+        </form>
+      {% else %}
+        <form method="post" action="{% url 'recurring_activate' template.id %}">
+          {% csrf_token %}
+          <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm focus-visible:ring-2 ring-water focus:outline-none">Activate</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  <p class="font-mono text-xs text-ink-soft mb-4">{{ template.rrule }}{% if not template.active %} · inactive{% endif %}</p>
+
+  {% if overdue_count %}
+    <div class="mb-4 rounded-md border border-amber bg-amber-bg p-3 flex items-center justify-between gap-3">
+      <p class="text-sm text-amber">{{ overdue_count }} overdue instance{{ overdue_count|pluralize }}.</p>
+      <div class="flex items-center gap-2 shrink-0">
+        <form method="post" action="{% url 'recurring_complete_overdue' template.id %}" hx-confirm="Mark all overdue instances complete?">
+          {% csrf_token %}
+          <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Complete all overdue</button>
+        </form>
+        <form method="post" action="{% url 'recurring_trash_overdue' template.id %}" hx-confirm="Trash all overdue instances?">
+          {% csrf_token %}
+          <button type="submit" class="h-8 px-3 rounded-md border border-line text-xs hover:border-red hover:text-red">Trash all overdue</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Instances</h2>
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for instance in instances %}
+      {% include "components/task_row.html" with task=instance show_complete=True %}
+    {% empty %}
+      <p class="text-ink-soft text-sm py-6 text-center">No instances materialized yet - the hourly job creates them up to 14 days ahead.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

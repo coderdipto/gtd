@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import Area, CaptureToken, InboxItem, Note, RecurringTemplate, Tag, Task, TimeBlock
+from core.recurring import build_rrule, parse_rrule
 from core.tagging import extract_tags, sync_tags_from_text
 
 
@@ -805,3 +806,156 @@ class NoteScreenSmokeTests(TestCase):
         big_file = SimpleUploadedFile("big.bin", b"x" * (21 * 1024 * 1024))
         self.client.post(reverse("note_attachment_upload", args=[note.id]), {"file": big_file})
         self.assertEqual(note.attachments.count(), 0)
+
+
+class RRuleRoundTripTests(TestCase):
+    def test_weekly_with_byday_and_interval_round_trips(self):
+        rrule_str = build_rrule("WEEKLY", byday=["TU", "TH"], interval=2)
+        self.assertEqual(rrule_str, "FREQ=WEEKLY;BYDAY=TU,TH;INTERVAL=2")
+        parsed = parse_rrule(rrule_str)
+        self.assertEqual(parsed, {"freq": "WEEKLY", "byday": ["TU", "TH"], "interval": 2})
+
+    def test_daily_with_default_interval_round_trips(self):
+        rrule_str = build_rrule("DAILY")
+        self.assertEqual(rrule_str, "FREQ=DAILY")
+        parsed = parse_rrule(rrule_str)
+        self.assertEqual(parsed, {"freq": "DAILY", "byday": [], "interval": 1})
+
+    def test_monthly_with_interval_round_trips(self):
+        rrule_str = build_rrule("MONTHLY", interval=3)
+        parsed = parse_rrule(rrule_str)
+        self.assertEqual(parsed["freq"], "MONTHLY")
+        self.assertEqual(parsed["interval"], 3)
+
+
+class MaterializeRecurringTests(TestCase):
+    def setUp(self):
+        self.template = RecurringTemplate.objects.create(
+            title="Water plants", rrule=build_rrule("WEEKLY", byday=["MO", "TH"])
+        )
+
+    def test_creates_instances_within_window(self):
+        call_command("materialize_recurring", "--as-of", "2026-07-13")  # Monday
+        instances = Task.objects.filter(recurring_template=self.template)
+        self.assertGreater(instances.count(), 0)
+        for t in instances:
+            self.assertEqual(t.list, Task.List.NEXT)
+            self.assertIn(t.occurrence_date.strftime("%a"), ("Mon", "Thu"))
+
+    def test_todays_occurrence_gets_today_horizon_future_gets_anytime(self):
+        call_command("materialize_recurring", "--as-of", "2026-07-13")  # Monday
+        todays = Task.objects.get(recurring_template=self.template, occurrence_date=date(2026, 7, 13))
+        self.assertEqual(todays.horizon, Task.Horizon.TODAY)
+        future = Task.objects.get(recurring_template=self.template, occurrence_date=date(2026, 7, 16))  # Thursday
+        self.assertEqual(future.horizon, Task.Horizon.ANYTIME)
+
+    def test_running_twice_does_not_duplicate(self):
+        call_command("materialize_recurring", "--as-of", "2026-07-13")
+        first_count = Task.objects.filter(recurring_template=self.template).count()
+        call_command("materialize_recurring", "--as-of", "2026-07-13")
+        second_count = Task.objects.filter(recurring_template=self.template).count()
+        self.assertEqual(first_count, second_count)
+
+    def test_advances_and_extends_window_on_next_run(self):
+        call_command("materialize_recurring", "--as-of", "2026-07-13")
+        first_count = Task.objects.filter(recurring_template=self.template).count()
+        call_command("materialize_recurring", "--as-of", "2026-07-20")
+        second_count = Task.objects.filter(recurring_template=self.template).count()
+        self.assertGreater(second_count, first_count)
+
+    def test_inactive_template_not_materialized(self):
+        self.template.active = False
+        self.template.save(update_fields=["active"])
+        call_command("materialize_recurring", "--as-of", "2026-07-13")
+        self.assertEqual(Task.objects.filter(recurring_template=self.template).count(), 0)
+
+    def test_unique_constraint_prevents_duplicate_occurrence(self):
+        Task.objects.create(
+            recurring_template=self.template, occurrence_date=date(2026, 7, 13), title="x"
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Task.objects.create(
+                    recurring_template=self.template, occurrence_date=date(2026, 7, 13), title="y"
+                )
+
+
+class OverduePileUpTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.template = RecurringTemplate.objects.create(title="Standup", rrule="FREQ=DAILY")
+        self.overdue1 = Task.objects.create(
+            recurring_template=self.template, occurrence_date=date(2026, 7, 10), title="Standup"
+        )
+        self.overdue2 = Task.objects.create(
+            recurring_template=self.template, occurrence_date=date(2026, 7, 11), title="Standup"
+        )
+        self.not_overdue = Task.objects.create(
+            recurring_template=self.template, occurrence_date=date(2026, 7, 20), title="Standup"
+        )
+
+    def test_overdue_badge_shown_on_task_row(self):
+        response = self.client.get(reverse("recurring_detail", args=[self.template.id]))
+        self.assertContains(response, "overdue since")
+        self.assertEqual(response.context["overdue_count"], 2)
+
+    def test_complete_all_overdue(self):
+        self.client.post(reverse("recurring_complete_overdue", args=[self.template.id]))
+        self.overdue1.refresh_from_db()
+        self.overdue2.refresh_from_db()
+        self.not_overdue.refresh_from_db()
+        self.assertIsNotNone(self.overdue1.completed_at)
+        self.assertIsNotNone(self.overdue2.completed_at)
+        self.assertIsNone(self.not_overdue.completed_at)
+
+    def test_trash_all_overdue(self):
+        self.client.post(reverse("recurring_trash_overdue", args=[self.template.id]))
+        self.overdue1.refresh_from_db()
+        self.not_overdue.refresh_from_db()
+        self.assertEqual(self.overdue1.list, Task.List.TRASH)
+        self.assertEqual(self.not_overdue.list, Task.List.NEXT)
+
+    def test_completing_one_instance_does_not_affect_others(self):
+        self.overdue1.complete()
+        self.overdue2.refresh_from_db()
+        self.assertIsNone(self.overdue2.completed_at)
+
+
+class RecurringScreensSmokeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_list_and_create_render_empty(self):
+        for name in ("recurring", "recurring_create"):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200, name)
+
+    def test_create_then_detail_and_edit_render(self):
+        response = self.client.post(
+            reverse("recurring_create"),
+            {"title": "Standup", "freq": "WEEKLY", "byday": ["MO", "WE", "FR"], "interval": "1"},
+        )
+        self.assertEqual(response.status_code, 302)
+        template = RecurringTemplate.objects.get(title="Standup")
+        self.assertEqual(template.rrule, "FREQ=WEEKLY;BYDAY=MO,WE,FR")
+
+        for name in ("recurring_detail", "recurring_edit"):
+            response = self.client.get(reverse(name, args=[template.id]))
+            self.assertEqual(response.status_code, 200, name)
+
+    def test_create_without_title_reshows_form_with_error(self):
+        response = self.client.post(reverse("recurring_create"), {"title": "", "freq": "DAILY"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Title is required")
+        self.assertFalse(RecurringTemplate.objects.exists())
+
+    def test_deactivate_and_reactivate(self):
+        template = RecurringTemplate.objects.create(title="X", rrule="FREQ=DAILY")
+        self.client.post(reverse("recurring_deactivate", args=[template.id]))
+        template.refresh_from_db()
+        self.assertFalse(template.active)
+        self.client.post(reverse("recurring_activate", args=[template.id]))
+        template.refresh_from_db()
+        self.assertTrue(template.active)

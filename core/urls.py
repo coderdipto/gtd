@@ -2,7 +2,7 @@ from functools import partial
 
 from django.urls import path
 
-from . import clarify, lists, notes, projects, tags, views
+from . import clarify, lists, notes, projects, recurring, tags, views
 
 # Named routes referenced by base.html nav. Real implementations land in
 # their own epics (see docs/task-breakdown.md); until then each renders
@@ -53,7 +53,22 @@ urlpatterns = [
         name="note_attachment_delete",
     ),
     path("tasks/<int:pk>/convert-to-note/", notes.task_convert_to_note, name="task_convert_to_note"),
-    path("recurring/", partial(views.stub, title="Recurring"), name="recurring"),
+    path("recurring/", recurring.recurring_view, name="recurring"),
+    path("recurring/new/", recurring.recurring_create, name="recurring_create"),
+    path("recurring/<int:pk>/", recurring.recurring_detail, name="recurring_detail"),
+    path("recurring/<int:pk>/edit/", recurring.recurring_edit, name="recurring_edit"),
+    path("recurring/<int:pk>/deactivate/", recurring.recurring_deactivate, name="recurring_deactivate"),
+    path("recurring/<int:pk>/activate/", recurring.recurring_activate, name="recurring_activate"),
+    path(
+        "recurring/<int:pk>/overdue/complete/",
+        recurring.recurring_complete_overdue,
+        name="recurring_complete_overdue",
+    ),
+    path(
+        "recurring/<int:pk>/overdue/trash/",
+        recurring.recurring_trash_overdue,
+        name="recurring_trash_overdue",
+    ),
     path("tags/", tags.tags_view, name="tags"),
     path("tags/<int:pk>/toggle-context/", tags.tag_toggle_context, name="tag_toggle_context"),
     path("tags/<int:pk>/rename/", tags.tag_rename, name="tag_rename"),

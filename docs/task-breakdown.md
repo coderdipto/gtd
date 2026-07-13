@@ -120,14 +120,15 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 7 — Recurrence engine (M2)
 
-- [ ] `/recurring`: `RecurringTemplate` CRUD; rule builder (frequency/weekday/interval) → RRULE via `python-dateutil`; optional standing block (start time + duration).
-- [ ] `materialize_recurring` cron command (hourly): generate occurrences `last_materialized_until` → `today + 14 days`; create `Task(list=NEXT, occurrence_date=…)`; unique constraint `(recurring_template, occurrence_date)` for idempotence; advance `last_materialized_until`.
-- [ ] Today view inclusion rule: instances with `occurrence_date <= today` and incomplete.
-- [ ] Overdue pile-up: "overdue since {date}" badge, no replacement of prior instances; bulk actions "complete all overdue" / "trash all overdue" on recurring detail page.
-- [ ] Calendar linkage: standing block + GCal connected → one recurring GCal event on GTD calendar mirroring the RRULE, `gcal_event_id` stored; template edits patch the event; deactivation deletes it; per-instance TimeBlocks NOT created for recurring tasks.
-- [ ] Completing an instance leaves the recurring GCal event untouched.
-- [ ] **Test:** materializer run-twice idempotence, RRULE round-trip, pile-up query.
-- [ ] **Rollback:** deactivate templates; instances remain ordinary tasks.
+- [x] `/recurring`: `RecurringTemplate` CRUD (`core/recurring.py`); rule builder (frequency/weekday/interval) → RRULE via a hand-rolled `build_rrule`/`parse_rrule` pair (round-trip tested) rather than constructing the string through `dateutil` directly — `dateutil.rrule` has no RRULE-string *serializer* (only `rrulestr` to parse one), so the string is built manually and `rrulestr` is what actually does the "via python-dateutil" occurrence generation in the materializer; optional standing block (start time + duration) fields save straight onto the existing `RecurringTemplate` fields.
+- [x] `materialize_recurring` cron command (hourly, `core/management/commands/materialize_recurring.py`): generate occurrences `last_materialized_until` → `today + 14 days`; create `Task(list=NEXT, occurrence_date=…, horizon=TODAY if due today else ANYTIME)`; `--as-of YYYY-MM-DD` for synthetic-date testing, matching `rollover`'s convention.
+- [x] Unique constraint `(recurring_template, occurrence_date)` for idempotence — added as `Task.Meta.constraints` (`unique_recurring_occurrence`, partial on `recurring_template__isnull=False`) in migration `0002_task_unique_recurring_occurrence`; this wasn't in Epic 2's original field list but is explicitly required by this step's spec, so it's an addition, not a redesign.
+- [x] Today view inclusion rule: instances with `occurrence_date <= today` and incomplete — **already implemented in Epic 5**, re-confirmed here now that the materializer actually populates data (`MaterializeRecurringTests`).
+- [x] Overdue pile-up: "overdue since {date}" badge (`Task.is_overdue_recurring`/`overdue_since_label` properties, rendered via `task_row.html`'s existing `overdue` badge kind), no replacement of prior instances; bulk actions "complete all overdue" / "trash all overdue" on recurring detail page.
+- [~] Calendar linkage: **stubbed, not implemented** — `core/recurring.py::_sync_gcal_event` is a deliberate no-op gated on `GoogleCredential.objects.exists()` (currently always False), called from the create/edit/deactivate views so the wiring point exists; real GCal event create/patch/delete lands in Epic 8.
+- [x] Completing an instance leaves the recurring GCal event untouched — trivially true today since no GCal event exists yet; will need re-verification once Epic 8 lands.
+- [x] **Test:** materializer run-twice idempotence, RRULE round-trip, pile-up query (badge presence, bulk actions, completing one instance doesn't affect siblings), unique-constraint enforcement, screen smoke tests. 25 new tests, 98/98 passing.
+- [x] **Rollback:** deactivate templates; instances remain ordinary tasks.
 
 ## Epic 8 — Google Calendar integration (M2)
 
