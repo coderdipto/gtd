@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("/static/fonts/BricolageGrotesque-SemiBold.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("/static/fonts/BricolageGrotesque-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Inter";
+    src: url("/static/fonts/Inter-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Inter";
+    src: url("/static/fonts/Inter-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Inter";
+    src: url("/static/fonts/Inter-SemiBold.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    src: url("/static/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    src: url("/static/fonts/JetBrainsMono-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-display: swap;
+  }
+
+  body {
+    @apply bg-paper text-ink font-body text-[0.9375rem] leading-normal;
+  }
+
+  nav svg.lucide {
+    width: 20px;
+    height: 20px;
+  }
+}

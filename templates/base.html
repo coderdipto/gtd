@@ -1,0 +1,106 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}GTD{% endblock %}</title>
+  <link rel="manifest" href="{% static 'manifest/manifest.json' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'js/htmx.min.js' %}" defer></script>
+  <script src="{% static 'js/sortable.min.js' %}" defer></script>
+  <script src="{% static 'js/alpine.min.js' %}" defer></script>
+  {% block extra_head %}{% endblock %}
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("/service-worker.js"));
+    }
+  </script>
+</head>
+<body class="h-full bg-paper text-ink font-body" hx-boost="true">
+
+  <div class="flex h-full">
+    <!-- Desktop sidebar -->
+    <aside class="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 border-r border-line bg-surface">
+      <div class="p-4">
+        <span class="font-display font-bold text-lg">GTD</span>
+      </div>
+      <nav class="flex-1 px-2 space-y-6 overflow-y-auto">
+        <div>
+          <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Capture</p>
+          <a href="{% url 'inbox' %}" class="flex items-center justify-between px-2 py-2 rounded-md text-sm hover:bg-water-soft">
+            <span>Inbox</span>
+            <span class="font-mono text-xs text-ink-soft">{{ inbox_count|default:"0" }}</span>
+          </a>
+        </div>
+        <div>
+          <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Engage</p>
+          <a href="{% url 'today' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Today</a>
+          <a href="{% url 'week' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">This Week</a>
+          <a href="{% url 'month' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">This Month</a>
+          <a href="{% url 'tasks' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Next Actions</a>
+        </div>
+        <div>
+          <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Organize</p>
+          <a href="{% url 'projects' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Projects</a>
+          <a href="{% url 'waiting' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Waiting For</a>
+          <a href="{% url 'someday' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Someday</a>
+          <a href="{% url 'notes' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Notes</a>
+          <a href="{% url 'recurring' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Recurring</a>
+          <a href="{% url 'tags' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Tags</a>
+        </div>
+        <div>
+          <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Reflect</p>
+          <a href="{% url 'review' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Review</a>
+          <a href="{% url 'stats' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Stats</a>
+        </div>
+      </nav>
+      <div class="p-2 border-t border-line">
+        <a href="{% url 'settings' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Settings</a>
+        <a href="{% url 'trash' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft">Trash</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Global header / trust strip -->
+      <header class="sticky top-0 z-10 bg-paper/95 backdrop-blur border-b border-line px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2 lg:hidden">
+          <span class="font-display font-bold">GTD</span>
+        </div>
+        <div class="flex-1"></div>
+        <div class="font-mono text-xs text-ink-soft" id="trust-strip">
+          inbox {{ inbox_count|default:"0" }} &middot; review {{ review_age_days|default:"—" }}
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-y-auto pb-20 lg:pb-0">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- Mobile bottom tab bar -->
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-surface border-t border-line flex items-center justify-around h-16 px-2">
+    <a href="{% url 'inbox' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+      {% include "icons/inbox.svg" %}
+      <span>Inbox</span>
+    </a>
+    <a href="{% url 'today' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+      {% include "icons/circle-check.svg" %}
+      <span>Today</span>
+    </a>
+    <a href="{% url 'capture' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-water text-white -mt-6 shadow-sm">
+      {% include "icons/plus.svg" %}
+    </a>
+    <a href="{% url 'calendar_page' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+      {% include "icons/calendar.svg" %}
+      <span>Calendar</span>
+    </a>
+    <a href="{% url 'review' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px]">
+      {% include "icons/calendar-check.svg" %}
+      <span>Review</span>
+    </a>
+  </nav>
+
+</body>
+</html>

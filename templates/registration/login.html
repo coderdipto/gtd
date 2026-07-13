@@ -1,0 +1,31 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in · GTD</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="h-full bg-paper text-ink font-body flex items-center justify-center">
+  <div class="w-full max-w-xs bg-surface border border-line rounded-md shadow-sm p-6">
+    <h1 class="font-display font-bold text-xl mb-4">GTD</h1>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% if form.errors %}
+        <p class="text-red text-sm">Your username and password didn't match. Please try again.</p>
+      {% endif %}
+      <div>
+        <label class="block text-sm mb-1" for="id_username">Username</label>
+        {{ form.username }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1" for="id_password">Password</label>
+        {{ form.password }}
+      </div>
+      <button type="submit" class="w-full h-11 rounded-md bg-water text-white text-sm font-medium">Log in</button>
+      <input type="hidden" name="next" value="{{ next }}">
+    </form>
+  </div>
+</body>
+</html>

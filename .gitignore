@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Node (tailwind cli download, if any)
+node_modules/
+
+# Tailwind standalone CLI binary (large, platform-specific — re-download, don't commit)
+.bin/
+
+# collectstatic output (regenerated at deploy)
+staticfiles/
+
