@@ -1,0 +1,16 @@
+<div id="notif-row-{{ kind }}" class="flex items-center justify-between gap-3 py-2">
+  <span class="text-sm font-mono">{{ kind }}</span>
+  <div class="flex items-center gap-2 shrink-0">
+    <button type="button"
+            hx-post="{% url 'notification_toggle' kind %}"
+            hx-target="#notif-row-{{ kind }}" hx-swap="outerHTML"
+            class="h-7 px-2 rounded-md text-xs {% if enabled %}bg-water text-white{% else %}border border-line text-ink-soft{% endif %}">
+      {% if enabled %}On{% else %}Off{% endif %}
+    </button>
+    <button type="button"
+            hx-post="{% url 'notification_test_fire' kind %}"
+            hx-target="#notif-test-{{ kind }}" hx-swap="innerHTML"
+            class="h-7 px-2 rounded-md border border-line text-xs hover:border-water">Test</button>
+    <span id="notif-test-{{ kind }}" class="text-xs text-ink-soft"></span>
+  </div>
+</div>

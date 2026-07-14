@@ -1,8 +1,10 @@
 from django.core.management.base import BaseCommand
 from django.db.models import F
+from django.urls import reverse
 from django.utils import timezone
 
 from core.models import Task, TimeBlock
+from core.notifications import notify
 
 
 class Command(BaseCommand):
@@ -27,6 +29,11 @@ class Command(BaseCommand):
 
 
 def _notify_missed_block(block):
-    # Real ntfy dispatch is Epic 10's notify() helper - this is the wiring
-    # point so that epic only has to fill in the body, not hunt for call sites.
-    pass
+    notify(
+        "missed_block",
+        title="Missed block",
+        message=f"Missed block: {block.task.title}. Reschedule?",
+        url=reverse("calendar_page"),
+        priority="high",
+        ref_id=block.id,
+    )

@@ -9,7 +9,8 @@ from django.views.decorators.http import require_POST
 
 from .forms import InboxItemForm
 from .google_calendar import get_credential, google_configured
-from .models import CaptureToken, InboxItem
+from .models import CaptureToken, InboxItem, NotificationSetting
+from .notifications import KINDS, is_kind_enabled, send_test_notification
 
 
 def stub(request, title):
@@ -89,10 +90,37 @@ def inbox_item_done(request, pk):
 @login_required
 def settings_page(request):
     tokens = CaptureToken.objects.order_by("-id")
+    notification_kinds = [{"kind": k, "enabled": is_kind_enabled(k)} for k in KINDS]
     return render(
         request,
         "core/settings.html",
-        {"tokens": tokens, "credential": get_credential(), "google_configured": google_configured()},
+        {
+            "tokens": tokens,
+            "credential": get_credential(),
+            "google_configured": google_configured(),
+            "notification_kinds": notification_kinds,
+            "ntfy_configured": bool(settings.NTFY_TOPIC),
+        },
+    )
+
+
+@login_required
+@require_POST
+def notification_toggle(request, kind):
+    setting, _created = NotificationSetting.objects.get_or_create(kind=kind, defaults={"enabled": True})
+    setting.enabled = not setting.enabled
+    setting.save(update_fields=["enabled"])
+    return render(request, "core/partials/notification_row.html", {"kind": kind, "enabled": setting.enabled})
+
+
+@login_required
+@require_POST
+def notification_test_fire(request, kind):
+    sent = send_test_notification(kind)
+    return render(
+        request,
+        "core/partials/notification_test_result.html",
+        {"kind": kind, "sent": sent},
     )
 
 

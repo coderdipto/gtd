@@ -343,3 +343,15 @@ class NotificationLog(models.Model):
         indexes = [
             models.Index(fields=["kind", "ref_id", "sent_at"]),
         ]
+
+
+class NotificationSetting(models.Model):
+    # Per-kind on/off toggle (Step 10's Settings page) - not in the original
+    # Step 2 model list, added because this step's own spec explicitly calls
+    # for the toggle UI and there's nowhere else to persist that state.
+    # A kind with no row here defaults to enabled (see core/notifications.py).
+    kind = models.CharField(max_length=30, unique=True)
+    enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.kind}: {'on' if self.enabled else 'off'}"

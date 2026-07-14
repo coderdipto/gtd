@@ -63,5 +63,21 @@
       {% endif %}
     {% endif %}
   </section>
+
+  <section class="bg-surface border border-line rounded-md p-4">
+    <h2 class="font-display font-semibold text-lg mb-2">Notifications (ntfy)</h2>
+    {% if ntfy_configured %}
+      <p class="text-sm mb-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono bg-water-soft text-water">Configured</span>
+      </p>
+    {% else %}
+      <p class="text-ink-soft text-xs mb-3">Set <code class="font-mono">NTFY_TOPIC</code> in <code class="font-mono">.env</code> to enable — pick a high-entropy name since anyone who knows it can read it.</p>
+    {% endif %}
+    <div class="divide-y divide-line">
+      {% for n in notification_kinds %}
+        {% include "core/partials/notification_row.html" with kind=n.kind enabled=n.enabled %}
+      {% endfor %}
+    </div>
+  </section>
 </div>
 {% endblock %}

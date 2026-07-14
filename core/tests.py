@@ -18,6 +18,8 @@ from core.models import (
     GoogleCredential,
     InboxItem,
     Note,
+    NotificationLog,
+    NotificationSetting,
     RecurringTemplate,
     ReviewConfig,
     ReviewSession,
@@ -26,6 +28,7 @@ from core.models import (
     Task,
     TimeBlock,
 )
+from core.notifications import KINDS, is_kind_enabled, notify
 from core.recurring import build_rrule, parse_rrule
 from core.reviews import WEEKLY_PHASES
 from core.tagging import extract_tags, sync_tags_from_text
@@ -1783,3 +1786,189 @@ class ReviewScreenSmokeTests(TestCase):
             session.save()
             response = self.client.get(reverse("review_weekly_phase", args=[phase]))
             self.assertEqual(response.status_code, 200, phase)
+
+
+ntfy_settings = override_settings(NTFY_TOPIC="test-topic-xyz")
+
+
+@ntfy_settings
+class NotifyHelperTests(TestCase):
+    def test_noop_without_ntfy_topic(self):
+        with override_settings(NTFY_TOPIC=""), patch("core.notifications.requests.post") as mock_post:
+            sent = notify("missed_block", "Title", "Message")
+            self.assertFalse(sent)
+            mock_post.assert_not_called()
+
+    @patch("core.notifications.requests.post")
+    def test_sends_when_configured(self, mock_post):
+        sent = notify("missed_block", "Title", "Message", ref_id=1)
+        self.assertTrue(sent)
+        mock_post.assert_called_once()
+        self.assertEqual(mock_post.call_args.args[0], "https://ntfy.sh/test-topic-xyz")
+        self.assertEqual(NotificationLog.objects.filter(kind="missed_block", ref_id=1).count(), 1)
+
+    @patch("core.notifications.requests.post")
+    def test_dedupe_same_kind_and_ref_same_day(self, mock_post):
+        notify("missed_block", "Title", "Message", ref_id=5)
+        sent_again = notify("missed_block", "Title", "Message", ref_id=5)
+        self.assertFalse(sent_again)
+        mock_post.assert_called_once()
+
+    @patch("core.notifications.requests.post")
+    def test_different_ref_id_not_deduped(self, mock_post):
+        notify("missed_block", "Title", "Message", ref_id=1)
+        sent = notify("missed_block", "Title", "Message", ref_id=2)
+        self.assertTrue(sent)
+        self.assertEqual(mock_post.call_count, 2)
+
+    @patch("core.notifications.requests.post")
+    def test_force_bypasses_dedupe(self, mock_post):
+        notify("missed_block", "Title", "Message", ref_id=1)
+        sent_again = notify("missed_block", "Title", "Message", ref_id=1, force=True)
+        self.assertTrue(sent_again)
+        self.assertEqual(mock_post.call_count, 2)
+
+    @patch("core.notifications.requests.post")
+    def test_disabled_kind_is_a_noop(self, mock_post):
+        NotificationSetting.objects.create(kind="missed_block", enabled=False)
+        sent = notify("missed_block", "Title", "Message")
+        self.assertFalse(sent)
+        mock_post.assert_not_called()
+
+    @patch("core.notifications.requests.post")
+    def test_kind_with_no_setting_row_defaults_enabled(self, mock_post):
+        sent = notify("missed_block", "Title", "Message")
+        self.assertTrue(sent)
+
+
+class NotificationSettingsPageTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_settings_page_lists_all_kinds(self):
+        response = self.client.get(reverse("settings"))
+        for kind in KINDS:
+            self.assertContains(response, kind)
+
+    def test_toggle_flips_state(self):
+        self.client.post(reverse("notification_toggle", args=["missed_block"]))
+        self.assertFalse(is_kind_enabled("missed_block"))
+        self.client.post(reverse("notification_toggle", args=["missed_block"]))
+        self.assertTrue(is_kind_enabled("missed_block"))
+
+    @ntfy_settings
+    @patch("core.notifications.requests.post")
+    def test_test_fire_sends_regardless_of_toggle_state(self, mock_post):
+        NotificationSetting.objects.create(kind="missed_block", enabled=False)
+        response = self.client.post(reverse("notification_test_fire", args=["missed_block"]))
+        mock_post.assert_called_once()
+        self.assertContains(response, "Sent")
+
+    def test_test_fire_reports_not_sent_when_unconfigured(self):
+        with override_settings(NTFY_TOPIC=""):
+            response = self.client.post(reverse("notification_test_fire", args=["missed_block"]))
+            self.assertContains(response, "Not sent")
+
+
+@ntfy_settings
+class MissedBlockNotifyTests(TestCase):
+    @patch("core.notifications.requests.post")
+    def test_detect_missed_blocks_sends_notification(self, mock_post):
+        task = Task.objects.create(title="Gym")
+        TimeBlock.objects.create(
+            task=task, start=timezone.now() - timedelta(hours=2), end=timezone.now() - timedelta(hours=1)
+        )
+        call_command("detect_missed_blocks")
+        mock_post.assert_called_once()
+        self.assertTrue(NotificationLog.objects.filter(kind="missed_block").exists())
+
+
+@ntfy_settings
+class ReviewReminderCommandTests(TestCase):
+    def setUp(self):
+        # A Friday (matches default weekday=4) at 15:45 - 15 minutes before
+        # the default 16:00 scheduled time.
+        self.config = ReviewConfig.objects.create(cadence="weekly", weekday=4, duration_min=60)
+
+    @patch("core.notifications.requests.post")
+    def test_sends_within_15min_window(self, mock_post):
+        call_command("notify_review_reminders", "--now", "2026-07-17T15:50:00+06:00")  # Friday
+        mock_post.assert_called_once()
+        self.assertTrue(NotificationLog.objects.filter(kind="review_reminder", ref_id=self.config.id).exists())
+
+    @patch("core.notifications.requests.post")
+    def test_does_not_send_outside_window(self, mock_post):
+        call_command("notify_review_reminders", "--now", "2026-07-17T10:00:00+06:00")
+        mock_post.assert_not_called()
+
+    @patch("core.notifications.requests.post")
+    def test_dedupes_across_multiple_runs_same_day(self, mock_post):
+        call_command("notify_review_reminders", "--now", "2026-07-17T15:50:00+06:00")
+        call_command("notify_review_reminders", "--now", "2026-07-17T15:55:00+06:00")
+        mock_post.assert_called_once()
+
+    @patch("core.notifications.requests.post")
+    def test_wrong_weekday_does_not_send(self, mock_post):
+        call_command("notify_review_reminders", "--now", "2026-07-16T15:50:00+06:00")  # Thursday
+        mock_post.assert_not_called()
+
+
+@ntfy_settings
+class ReviewOverdueCommandTests(TestCase):
+    @patch("core.notifications.requests.post")
+    def test_never_reviewed_sends_overdue_nag(self, mock_post):
+        ReviewConfig.objects.create(cadence="weekly")
+        call_command("notify_review_overdue")
+        mock_post.assert_called_once()
+
+    @patch("core.notifications.requests.post")
+    def test_recently_reviewed_does_not_nag(self, mock_post):
+        ReviewConfig.objects.create(cadence="weekly")
+        ReviewSession.objects.create(cadence="weekly", completed_at=timezone.now() - timedelta(days=1))
+        call_command("notify_review_overdue")
+        mock_post.assert_not_called()
+
+    @patch("core.notifications.requests.post")
+    def test_unconfigured_cadence_skipped(self, mock_post):
+        call_command("notify_review_overdue")
+        mock_post.assert_not_called()
+
+
+@ntfy_settings
+class FollowUpDigestTests(TestCase):
+    @patch("core.notifications.requests.post")
+    def test_batches_all_overdue_into_one_notification(self, mock_post):
+        for i in range(3):
+            Task.objects.create(
+                title=f"W{i}", list=Task.List.WAITING, waiting_since=date.today() - timedelta(days=10)
+            )
+        call_command("notify_follow_up_digest")
+        mock_post.assert_called_once()
+        message = mock_post.call_args.kwargs["data"].decode()
+        self.assertIn("3", message)
+
+    @patch("core.notifications.requests.post")
+    def test_no_overdue_no_notification(self, mock_post):
+        call_command("notify_follow_up_digest")
+        mock_post.assert_not_called()
+
+
+@ntfy_settings
+class RecurringOverdueCommandTests(TestCase):
+    @patch("core.notifications.requests.post")
+    def test_counts_overdue_recurring_instances(self, mock_post):
+        template = RecurringTemplate.objects.create(title="Standup", rrule="FREQ=DAILY")
+        for i in range(2):
+            Task.objects.create(
+                title="Standup", recurring_template=template, occurrence_date=date.today() - timedelta(days=i + 1)
+            )
+        call_command("notify_recurring_overdue")
+        mock_post.assert_called_once()
+        message = mock_post.call_args.kwargs["data"].decode()
+        self.assertIn("2", message)
+
+    @patch("core.notifications.requests.post")
+    def test_no_overdue_instances_no_notification(self, mock_post):
+        call_command("notify_recurring_overdue")
+        mock_post.assert_not_called()

@@ -124,3 +124,9 @@ GOOGLE_OAUTH_REDIRECT = env("GOOGLE_OAUTH_REDIRECT", default="http://localhost:8
 # Fernet key encrypting GoogleCredential.refresh_token at rest. Generate one with:
 #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FERNET_KEY = env("FERNET_KEY", default="")
+
+# ntfy (Step 10). Blank by default - core/notifications.py::notify() is a
+# no-op without a topic. Pick a high-entropy topic name (same practice as
+# claude-watch) since anyone who knows it can read/publish to it - it's not
+# a secret in the cryptographic sense, but treat it like one.
+NTFY_TOPIC = env("NTFY_TOPIC", default="")

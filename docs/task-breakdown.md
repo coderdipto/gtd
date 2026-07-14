@@ -171,12 +171,16 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 10 — Notifications (ntfy) (M3)
 
-- [ ] `notify(kind, title, message, url, priority)` helper → `POST https://ntfy.sh/<NTFY_TOPIC>` with deep link; document choosing a high-entropy topic name.
-- [ ] `NotificationLog` dedupe (one per kind+ref+day).
-- [ ] Kinds/timing: `missed_block` (immediate), `review_reminder` (T-15min), `review_overdue` (daily 09:00), `follow_up_due` (daily digest), `recurring_overdue` (daily 09:00 count-based).
-- [ ] Settings page: per-kind toggles + test-fire button.
-- [ ] **Test:** dedupe, digest batching, toggle respected.
-- [ ] **Rollback:** `NTFY_TOPIC` unset → no-op.
+**Status: implemented and unit-tested with mocks, awaiting the user's choice of an ntfy topic name before this can be verified end-to-end and committed — same pattern as Epic 8, see the note at the end of this section.**
+
+- [x] `notify(kind, title, message, url, priority, ref_id, force)` helper (`core/notifications.py`) → `POST https://ntfy.sh/<NTFY_TOPIC>` with a `Click` deep-link header; a no-op whenever `NTFY_TOPIC` is unset. Choosing a high-entropy topic name is called out in the settings.py comment (anyone who knows the topic can read/publish to it — treat it like a secret even though it isn't cryptographically one) and in the caveat below.
+- [x] `NotificationLog` dedupe (one per kind+ref_id+day) — a plain `NotificationLog.objects.filter(kind=, ref_id=, sent_at__date=today).exists()` check inside `notify()`, bypassable with `force=True` (used by the Settings page's test-fire button via a separate `send_test_notification()` that also bypasses the per-kind enabled toggle, since the point of testing is to check connectivity regardless of either).
+- [x] Kinds/timing, each its own management command (matching the one-command-per-cron-job convention from `rollover`/`materialize_recurring`/the Epic 8 GCal commands): `missed_block` (wired into the existing `detect_missed_blocks` 15-min cron, immediate), `review_reminder` (`notify_review_reminders`, checks each `ReviewConfig` against a T-15-to-T-0 window computed via the same RRULE-occurrence logic as Epic 9's GCal linkage — `--now` override for synthetic-time testing since this one depends on time-of-day, not just date), `review_overdue` (`notify_review_overdue`, daily 09:00, per-cadence day-count thresholds reusing the trust-strip's own logic), `follow_up_due` (`notify_follow_up_digest`, daily 09:00, **one batched notification** with the overdue count, not one per task), `recurring_overdue` (`notify_recurring_overdue`, daily 09:00, count-based).
+- [x] Settings page: per-kind toggles (new `NotificationSetting(kind, enabled)` model — not in Epic 2's original list, but this step's own spec explicitly calls for the toggle UI and there's nowhere else to persist it; a kind with no row defaults to enabled) + test-fire button per kind showing "Sent ✓" / "Not sent" inline.
+- [x] **Test:** 23 new tests, 192/192 passing — dedupe (same kind+ref_id same day skipped, different ref_id not deduped, `force=True` bypasses), digest batching (follow-up and recurring-overdue each produce exactly one `requests.post` call regardless of how many items are overdue, with the count in the message body), toggle respected (disabled kind is a no-op, toggling flips state, test-fire ignores the toggle), review-reminder's time-window logic (sends inside the 15-min window, not outside it, not on the wrong weekday, dedupes across multiple same-day runs), review-overdue thresholds (never-reviewed and stale-cadence nag, recently-reviewed and unconfigured-cadence don't).
+- [x] **Rollback:** `NTFY_TOPIC` unset → `notify()`'s very first check is `settings.NTFY_TOPIC`, so every command above becomes a complete no-op (verified by `NotifyHelperTests.test_noop_without_ntfy_topic`).
+
+**Why this epic is paused here:** same reason as Epic 8 — per the user's instruction, this implements + unit-tests with mocks and then stops before the final commit, because choosing and registering the actual `NTFY_TOPIC` value is the user's call, not something the agent can pick unilaterally (a leaked or guessable topic name lets anyone read/publish notifications to it). Once a topic name is chosen and set in `.env`, the whole flow — real ntfy.sh delivery, the Settings page test-fire button, and the four cron commands — should work as tested, but has never hit the real ntfy.sh endpoint.
 
 **— M3 milestone checkpoint: guided reviews, Eisenhower, Big-3, nags —**
 
