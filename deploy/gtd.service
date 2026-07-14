@@ -1,0 +1,24 @@
+[Unit]
+Description=GTD Django app (gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=gtd
+Group=gtd
+WorkingDirectory=/home/gtd/app
+EnvironmentFile=/home/gtd/app/.env
+ExecStart=/home/gtd/app/.venv/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/run/gtd/gunicorn.sock \
+    --access-logfile /var/log/gtd/gunicorn-access.log \
+    --error-logfile /var/log/gtd/gunicorn-error.log \
+    gtd.wsgi:application
+RuntimeDirectory=gtd
+RuntimeDirectoryMode=0755
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

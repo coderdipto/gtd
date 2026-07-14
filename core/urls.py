@@ -48,6 +48,11 @@ urlpatterns = [
     path("notes/<int:pk>/delete/", notes.note_delete, name="note_delete"),
     path("notes/<int:pk>/attachments/", notes.note_attachment_upload, name="note_attachment_upload"),
     path(
+        "notes/<int:pk>/attachments/<int:attachment_pk>/download/",
+        notes.note_attachment_download,
+        name="note_attachment_download",
+    ),
+    path(
         "notes/<int:pk>/attachments/<int:attachment_pk>/delete/",
         notes.note_attachment_delete,
         name="note_attachment_delete",

@@ -2,6 +2,7 @@
 Django settings for gtd project.
 """
 
+import os
 from pathlib import Path
 
 import environ
@@ -130,3 +131,32 @@ FERNET_KEY = env("FERNET_KEY", default="")
 # claude-watch) since anyone who knows it can read/publish to it - it's not
 # a secret in the cryptographic sense, but treat it like one.
 NTFY_TOPIC = env("NTFY_TOPIC", default="")
+
+# Logging (Step 12): console always; a rotating file handler is added only in
+# prod (DEBUG=False) - gunicorn's own stdout/stderr already goes to the
+# systemd journal (see deploy/gtd.service), so this file is specifically for
+# Django-level messages (sync errors etc., logged with an event id - see
+# core/google_calendar.py's logger.error(..., extra={"event_id": ...}) calls).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {"format": "{asctime} {levelname} {name} {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+}
+
+if not DEBUG:
+    LOG_DIR = env("DJANGO_LOG_DIR", default=str(BASE_DIR / "logs"))
+    os.makedirs(LOG_DIR, exist_ok=True)
+    LOGGING["handlers"]["file"] = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": os.path.join(LOG_DIR, "gtd.log"),
+        "maxBytes": 10 * 1024 * 1024,
+        "backupCount": 5,
+        "formatter": "verbose",
+    }
+    LOGGING["root"]["handlers"].append("file")

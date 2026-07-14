@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 from unittest.mock import MagicMock, patch
@@ -2071,3 +2072,105 @@ class StatsAggregateTests(TestCase):
         InboxItem.objects.create(title="C", done_directly=False)
         response = self.client.get(reverse("stats"))
         self.assertEqual(response.context["two_minute_count"], 2)
+
+
+@override_settings(MEDIA_ROOT=_MEDIA_TMPDIR)
+class PrivateAttachmentServingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.note = Note.objects.create(title="Doc", body="")
+        self.client.post(
+            reverse("note_attachment_upload", args=[self.note.id]),
+            {"file": SimpleUploadedFile("report.pdf", b"pdf-bytes")},
+        )
+        self.attachment = self.note.attachments.get()
+
+    @override_settings(DEBUG=True)
+    def test_dev_mode_streams_file_directly(self):
+        # Django's test runner forces settings.DEBUG=False for every test
+        # (setup_test_environment()), regardless of the project's real .env -
+        # so exercising the dev-mode branch here needs an explicit override.
+        response = self.client.get(reverse("note_attachment_download", args=[self.note.id, self.attachment.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"pdf-bytes")
+        self.assertNotIn("X-Accel-Redirect", response)
+
+    @override_settings(DEBUG=False)
+    def test_prod_mode_uses_x_accel_redirect(self):
+        response = self.client.get(reverse("note_attachment_download", args=[self.note.id, self.attachment.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("X-Accel-Redirect", response)
+        self.assertTrue(response["X-Accel-Redirect"].startswith("/protected-media/"))
+        self.assertEqual(response.content, b"")  # nginx serves the body, not Django
+
+    def test_content_disposition_uses_original_filename(self):
+        response = self.client.get(reverse("note_attachment_download", args=[self.note.id, self.attachment.id]))
+        self.assertIn("report.pdf", response["Content-Disposition"])
+
+    def test_missing_attachment_404s(self):
+        response = self.client.get(reverse("note_attachment_download", args=[self.note.id, 99999]))
+        self.assertEqual(response.status_code, 404)
+
+
+class BackupDatabaseCommandTests(TestCase):
+    def test_noop_without_bucket_configured(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("BACKUP_S3_BUCKET", None)
+            call_command("backup_database")  # should not raise, just skip
+
+    @patch("boto3.client")
+    @patch("core.management.commands.backup_database.subprocess.run")
+    def test_runs_pg_dump_and_uploads_and_prunes(self, mock_run, mock_boto_client):
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+        old_time = timezone.now() - timedelta(days=20)
+        recent_time = timezone.now() - timedelta(days=1)
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "gtd-backups/old.dump", "LastModified": old_time},
+                    {"Key": "gtd-backups/recent.dump", "LastModified": recent_time},
+                ]
+            }
+        ]
+        mock_s3.get_paginator.return_value = mock_paginator
+
+        with patch.dict(os.environ, {"BACKUP_S3_BUCKET": "my-bucket"}):
+            call_command("backup_database")
+
+        mock_run.assert_called_once()
+        pg_dump_cmd = mock_run.call_args.args[0]
+        self.assertEqual(pg_dump_cmd[0], "pg_dump")
+        mock_s3.upload_file.assert_called_once()
+        mock_s3.delete_object.assert_called_once_with(Bucket="my-bucket", Key="gtd-backups/old.dump")
+
+    @patch("core.management.commands.backup_database.subprocess.run")
+    def test_pg_dump_failure_raises_with_event_id(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stderr="connection refused")
+        with patch.dict(os.environ, {"BACKUP_S3_BUCKET": "my-bucket"}):
+            with self.assertRaises(Exception) as ctx:
+                call_command("backup_database")
+        self.assertIn("event_id", str(ctx.exception))
+
+
+class SyncErrorLoggingTests(TestCase):
+    @gcal_settings
+    @patch("core.google_calendar.GoogleCalendarClient.list_events")
+    def test_non_410_sync_error_is_logged_and_reraised(self, mock_list_events):
+        from googleapiclient.errors import HttpError
+
+        from core.google_calendar import sync_calendar
+
+        credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        error_resp = MagicMock(status=500)
+        mock_list_events.side_effect = HttpError(error_resp, b"Server error")
+
+        with self.assertLogs("core.google_calendar", level="ERROR") as log_ctx:
+            with self.assertRaises(HttpError):
+                sync_calendar(credential)
+        self.assertIn("event_id", log_ctx.output[0])

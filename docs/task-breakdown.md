@@ -194,12 +194,17 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 12 — Deployment & ops (M4)
 
-- [ ] EC2 Ubuntu, gunicorn (systemd `gtd.service`), nginx vhost `gtd.sudipto.dev` + certbot TLS, local Postgres, `MEDIA_ROOT` via nginx `X-Accel-Redirect` (private attachments).
-- [ ] Env vars: `SECRET_KEY, DATABASE_URL, ALLOWED_HOSTS, GOOGLE_*, FERNET_KEY, NTFY_TOPIC`.
-- [ ] Cron table: `*/15 sync_gcal`, `hourly materialize_recurring`, `0:05 daily rollover`, `9:00 daily daily_digest`, `3:00 daily renew_gcal_channels`.
-- [ ] Nightly `pg_dump` to S3, 14-day retention.
-- [ ] Logging: Django file logs + gunicorn journal; sync errors logged with event ids.
-- [ ] **Rollback:** systemd stop; each cron independent.
+**Status: everything on the app side is implemented and unit-tested; the actual EC2/DNS/TLS provisioning is a manual, one-time task only the user can do — see `deploy/DEPLOY.md` and the note at the end of this section.**
+
+- [x] EC2 Ubuntu, gunicorn (systemd `gtd.service`), nginx vhost `gtd.sudipto.dev` + certbot TLS, local Postgres, `MEDIA_ROOT` via nginx `X-Accel-Redirect` (private attachments) — config files written to `deploy/` (`gtd.service`, `nginx-gtd.conf`), plus the real Django-side piece: `core/notes.py::note_attachment_download` (new view, replaces the old direct `att.file.url` link) checks login, then either streams the file directly in dev (`DEBUG=True`) or returns an `X-Accel-Redirect` header pointing at nginx's `internal`-only `/protected-media/` location in prod — nginx never serves `/media/` directly in `nginx-gtd.conf`, so there's no public path to an attachment that bypasses this view. **Provisioning the actual EC2 instance, pointing DNS at it, and running certbot are manual steps — not automatable from here.**
+- [x] Env vars: `SECRET_KEY, DATABASE_URL, ALLOWED_HOSTS, GOOGLE_*, FERNET_KEY, NTFY_TOPIC` already existed from earlier epics; added `BACKUP_S3_BUCKET`/`BACKUP_S3_PREFIX`/`DJANGO_LOG_DIR` to `.env.example` for this one.
+- [x] Cron table (`deploy/crontab.txt`) — reconciled against what's actually been built across epics rather than the original stale draft in this file (which predated Epics 8/10's commands): `*/15 sync_gcal` + `*/15 detect_missed_blocks` + `0 3 renew_gcal_channels` (Epic 8), `hourly materialize_recurring` (Epic 7), `0:05 daily rollover` (Epic 5), `*/5 notify_review_reminders` + `0 9 notify_review_overdue` + `0 9 notify_follow_up_digest` + `0 9 notify_recurring_overdue` (Epic 10), `0 2 daily backup_database` (this epic).
+- [x] Nightly `pg_dump` to S3, 14-day retention — `core/management/commands/backup_database.py`. `boto3` (new, `requirements/prod.txt` only — imported lazily inside the command so a dev checkout without it can still load `manage.py`) uploads the dump, then prunes any object under the prefix older than 14 days. A no-op when `BACKUP_S3_BUCKET` is unset.
+- [x] Logging: Django file logs (new `LOGGING` dict in `gtd/settings.py`, console always + a rotating file handler added only when `DEBUG=False`) + gunicorn journal (systemd's own stdout/stderr capture, nothing to configure Django-side); sync errors logged with a short event id (`core/google_calendar.py::sync_calendar`'s exception handler, `core/management/commands/backup_database.py`'s pg_dump/S3-upload failure paths) so one specific failure is greppable without correlating on timestamp.
+- [x] **Test:** 15 new tests, 210/210 passing — private attachment serving (dev streams the file directly, prod returns the `X-Accel-Redirect` header with an empty body, correct `Content-Disposition` filename, 404 on a missing attachment), `backup_database` (no-op without a bucket, pg_dump→upload→prune happy path with mocked `subprocess.run`/`boto3.client`, pg_dump failure raises with an event id), sync-error logging (a non-410 `HttpError` from `list_events` is logged with an event id and re-raised, verified via `assertLogs`).
+- [x] **Rollback:** systemd stop; each cron entry is an independent line, so one failing doesn't block the others.
+
+**Why this epic is paused here:** per the user's standing instruction, this implements + unit-tests everything automatable and stops before the final commit, because provisioning the actual EC2 instance, pointing `gtd.sudipto.dev`'s DNS at it, and running certbot are manual one-time tasks outside the agent's control (same reasoning as Epics 8/10). `deploy/DEPLOY.md` is the checklist for that manual part — once it's done, the systemd unit, nginx config, cron table, backup command, and logging config here should work as tested, but none of it has run on a real server yet.
 
 **— M4 milestone checkpoint: stats + hardened ops, v1 complete —**
 

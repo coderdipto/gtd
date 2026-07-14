@@ -1,0 +1,28 @@
+# GTD app cron table (docs/task-breakdown.md Epic 12).
+# Install with: crontab -u gtd deploy/crontab.txt  (edit the path to manage.py first)
+#
+# All commands are idempotent/safe to re-run and independent of each other -
+# a failing one doesn't block the others (task-breakdown.md's rollback note).
+
+MANAGE=/home/gtd/app/.venv/bin/python /home/gtd/app/manage.py
+
+# Google Calendar (Epic 8)
+*/15 * * * *  $MANAGE sync_gcal                  >> /var/log/gtd/cron.log 2>&1
+*/15 * * * *  $MANAGE detect_missed_blocks       >> /var/log/gtd/cron.log 2>&1
+0 3 * * *     $MANAGE renew_gcal_channels        >> /var/log/gtd/cron.log 2>&1
+
+# Recurrence engine (Epic 7)
+0 * * * *     $MANAGE materialize_recurring      >> /var/log/gtd/cron.log 2>&1
+
+# Horizon carry-over (Epic 5)
+5 0 * * *     $MANAGE rollover                   >> /var/log/gtd/cron.log 2>&1
+
+# Notifications (Epic 10) - review_reminders needs a tight cadence since it's
+# a T-15min window check; the rest are once-daily digests/nags at 09:00.
+*/5 * * * *   $MANAGE notify_review_reminders    >> /var/log/gtd/cron.log 2>&1
+0 9 * * *     $MANAGE notify_review_overdue      >> /var/log/gtd/cron.log 2>&1
+0 9 * * *     $MANAGE notify_follow_up_digest    >> /var/log/gtd/cron.log 2>&1
+0 9 * * *     $MANAGE notify_recurring_overdue   >> /var/log/gtd/cron.log 2>&1
+
+# Backups (Epic 12)
+0 2 * * *     $MANAGE backup_database            >> /var/log/gtd/cron.log 2>&1

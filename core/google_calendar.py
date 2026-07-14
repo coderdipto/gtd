@@ -7,7 +7,9 @@ wipes the credential + sync channels; existing TimeBlocks stay as ordinary
 local rows (rollback path, task-breakdown.md Epic 8).
 """
 
+import logging
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone as dt_timezone
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -22,6 +24,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import GoogleCredential, SyncChannel, TimeBlock
+
+logger = logging.getLogger(__name__)
 
 CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 GTD_CALENDAR_SUMMARY = "GTD"
@@ -238,7 +242,10 @@ def _apply_event_to_block(event):
 
 def sync_calendar(credential):
     """Incremental sync via syncToken; on a 410 (expired/invalid token) falls
-    back to a full resync and starts a fresh token."""
+    back to a full resync and starts a fresh token. Any failure is logged
+    with a short event id (task-breakdown.md Epic 12: "sync errors logged
+    with event ids") before re-raising, so it's easy to grep the log for one
+    specific occurrence without correlating on timestamp alone."""
     from googleapiclient.errors import HttpError
 
     client = GoogleCalendarClient(credential)
@@ -247,21 +254,28 @@ def sync_calendar(credential):
     sync_token = channel.sync_token if channel else None
 
     try:
-        result = client.list_events(calendar_id, sync_token=sync_token)
-    except HttpError as exc:
-        if getattr(exc, "status_code", getattr(exc.resp, "status", None)) == 410:
-            result = client.list_events(calendar_id, sync_token=None)  # full resync
-        else:
-            raise
+        try:
+            result = client.list_events(calendar_id, sync_token=sync_token)
+        except HttpError as exc:
+            if getattr(exc, "status_code", getattr(exc.resp, "status", None)) == 410:
+                result = client.list_events(calendar_id, sync_token=None)  # full resync
+            else:
+                raise
 
-    for event in result.get("items", []):
-        _apply_event_to_block(event)
+        for event in result.get("items", []):
+            _apply_event_to_block(event)
 
-    new_sync_token = result.get("nextSyncToken")
-    if new_sync_token and channel:
-        channel.sync_token = new_sync_token
-        channel.save(update_fields=["sync_token"])
-    return len(result.get("items", []))
+        new_sync_token = result.get("nextSyncToken")
+        if new_sync_token and channel:
+            channel.sync_token = new_sync_token
+            channel.save(update_fields=["sync_token"])
+        return len(result.get("items", []))
+    except Exception:
+        event_id = uuid.uuid4().hex[:12]
+        logger.error(
+            "GCal sync failed [event_id=%s] calendar_id=%s", event_id, calendar_id, exc_info=True
+        )
+        raise
 
 
 # --- Webhook (8c) ------------------------------------------------------------

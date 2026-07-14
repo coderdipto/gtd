@@ -44,7 +44,7 @@
     <div class="space-y-1 mb-3">
       {% for att in note.attachments.all %}
         <div class="flex items-center justify-between text-sm py-1">
-          <a href="{{ att.file.url }}" class="text-water hover:underline truncate" target="_blank" rel="noopener">{{ att.original_name }}</a>
+          <a href="{% url 'note_attachment_download' note.id att.id %}" class="text-water hover:underline truncate">{{ att.original_name }}</a>
           <form method="post" action="{% url 'note_attachment_delete' note.id att.id %}">
             {% csrf_token %}
             <button type="submit" class="text-red text-xs hover:underline focus-visible:ring-2 ring-water focus:outline-none">Remove</button>

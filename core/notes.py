@@ -1,11 +1,14 @@
+import mimetypes
+
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.postgres.search import SearchQuery
-from django.http import HttpResponseBadRequest
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import Note, Tag, Task
+from .models import Note, NoteAttachment, Tag, Task
 from .tagging import sync_tags_from_text
 
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024  # 20MB cap (task-breakdown.md Epic 6)
@@ -97,6 +100,29 @@ def note_attachment_upload(request, pk):
     if file and file.size <= MAX_ATTACHMENT_BYTES:
         note.attachments.create(file=file, original_name=file.name)
     return redirect("note_detail", pk=note.id)
+
+
+@login_required
+def note_attachment_download(request, pk, attachment_pk):
+    """Private attachment serving (task-breakdown.md Epic 12). In production
+    (DEBUG=False), nginx never serves /media/ directly (see deploy/nginx-gtd.conf) -
+    this view is the only path to a file, and it hands off to nginx's internal-only
+    `/protected-media/` location via X-Accel-Redirect after checking login. In
+    dev, DEBUG's own static() media serving isn't behind nginx, so this streams
+    the file directly instead."""
+    attachment = get_object_or_404(NoteAttachment, pk=attachment_pk, note_id=pk)
+    if not attachment.file or not attachment.file.storage.exists(attachment.file.name):
+        raise Http404
+    content_type = mimetypes.guess_type(attachment.original_name)[0] or "application/octet-stream"
+
+    if settings.DEBUG:
+        response = FileResponse(attachment.file.open("rb"), content_type=content_type)
+    else:
+        response = HttpResponse(content_type=content_type)
+        relative_path = attachment.file.name  # relative to MEDIA_ROOT, e.g. "attachments/2026/07/x.pdf"
+        response["X-Accel-Redirect"] = f"/protected-media/{relative_path}"
+    response["Content-Disposition"] = f'attachment; filename="{attachment.original_name}"'
+    return response
 
 
 @login_required
