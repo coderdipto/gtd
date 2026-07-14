@@ -1,13 +1,40 @@
+import json
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .google_calendar import GoogleCalendarClient, get_credential
 from .models import Task, TimeBlock
+
+BLOCK_COLORS = {"scheduled": "#BE5133", "completed": "#BE5133", "missed": "#B91C1C"}  # water/red (tailwind.config.js)
+
+
+def blocks_json(blocks, title):
+    # Feeds the mini FullCalendar in components/calendar_time_panel.html
+    # (shared by project_detail.html and task_detail.html) via that
+    # template's data-events="{{ blocks_json }}" attribute (deliberately NOT
+    # |safe - same reasoning as field_tagged.html's tagTypeahead JSON:
+    # Django's default auto-escaping must run so this string's own `"`
+    # characters become &quot; and get decoded back by the HTML parser
+    # before JS reads them, or the attribute value truncates at the first
+    # one). json.dumps already handles proper string escaping of `title`,
+    # which is free text.
+    data = [
+        {
+            "title": title,
+            "start": b.start.isoformat(),
+            "end": b.end.isoformat(),
+            "color": BLOCK_COLORS[b.status],
+            "editable": False,
+        }
+        for b in blocks
+    ]
+    return json.dumps(data)
 
 
 def _parse_local_datetime(value):
@@ -50,11 +77,8 @@ def calendar_events_json(request):
     persisted, so they're not stored anywhere, only returned in this response."""
     events = []
     for block in TimeBlock.objects.select_related("task"):
-        color = {
-            TimeBlock.Status.SCHEDULED: "#0F766E",
-            TimeBlock.Status.COMPLETED: "#0F766E",
-            TimeBlock.Status.MISSED: "#B91C1C",
-        }[block.status]
+        color = BLOCK_COLORS[block.status]
+        detail_url_name = "project_detail" if block.task.is_project else "task_detail"
         events.append(
             {
                 "id": f"block-{block.id}",
@@ -63,6 +87,7 @@ def calendar_events_json(request):
                 "end": block.end.isoformat(),
                 "backgroundColor": color,
                 "editable": block.status == TimeBlock.Status.SCHEDULED,
+                "extendedProps": {"detailUrl": reverse(detail_url_name, args=[block.task_id])},
             }
         )
 
@@ -116,7 +141,16 @@ def timeblock_create(request, task_pk):
         block.gcal_etag = result.get("etag", "")
         block.save(update_fields=["gcal_event_id", "gcal_etag"])
 
-    return JsonResponse({"id": block.id})
+    # This is a plain <form method=post> (project_detail.html's "Add block"),
+    # not a JS caller - <body hx-boost="true"> AJAX-intercepts it and expects
+    # a redirect (or real HTML) back, same as every other boosted form in the
+    # app. A raw JsonResponse instead gets swapped straight into the page as
+    # literal `{"id": 1}` text, with that URL pushed into the address bar -
+    # exactly what a user sees as "nothing happened, and now I'm on a weird
+    # URL showing JSON."
+    if task.is_project:
+        return redirect("project_detail", pk=task.id)
+    return redirect("task_detail", pk=task.id)
 
 
 @login_required
@@ -146,9 +180,15 @@ def timeblock_update(request, pk):
 @require_POST
 def timeblock_delete(request, pk):
     block = get_object_or_404(TimeBlock, pk=pk)
+    task = block.task
     credential = get_credential()
     if credential and block.gcal_event_id:
         client = GoogleCalendarClient(credential)
         client.delete_event(credential.gtd_calendar_id, block.gcal_event_id)
     block.delete()
-    return HttpResponse("")
+    # Same boosted-plain-form issue as timeblock_create above: an empty
+    # HttpResponse("") swapped in by hx-boost leaves the page blank at this
+    # URL instead of returning to the project/task it came from.
+    if task.is_project:
+        return redirect("project_detail", pk=task.id)
+    return redirect("task_detail", pk=task.id)

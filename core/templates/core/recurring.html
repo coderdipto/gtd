@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load gtd_extras %}
 {% block title %}Recurring · GTD{% endblock %}
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-6">
@@ -14,7 +15,7 @@
       <a href="{% url 'recurring_detail' template.id %}" class="flex items-center justify-between gap-3 py-3 px-1 hover:bg-water-soft/30 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
         <div class="min-w-0">
           <p class="text-sm font-medium truncate">{{ template.title }}</p>
-          <p class="font-mono text-xs text-ink-soft">{{ template.rrule }}</p>
+          <p class="text-xs text-ink-soft" title="{{ template.rrule }}">{{ template.rrule|humanize_rrule }}</p>
         </div>
         {% if not template.active %}<span class="text-xs text-ink-soft shrink-0">Inactive</span>{% endif %}
       </a>

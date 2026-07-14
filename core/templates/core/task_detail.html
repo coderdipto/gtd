@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load gtd_extras static %}
+{% block title %}{{ task.title }} · GTD{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/calendar.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between gap-3 mb-1">
+    <h1 class="font-display font-bold text-2xl truncate">{{ task.title }}</h1>
+    {% if not task.completed_at %}
+      <button type="button"
+              hx-post="{% url 'task_complete' task.id %}"
+              hx-target="body" hx-swap="none"
+              onclick="setTimeout(() => window.location.reload(), 200)"
+              class="btn-secondary h-9 px-3 text-sm shrink-0">
+        Mark done
+      </button>
+    {% else %}
+      <span class="text-xs text-ink-soft font-mono shrink-0">Completed {{ task.completed_at|date:"d M Y" }}</span>
+    {% endif %}
+  </div>
+
+  <div class="flex items-center gap-2 flex-wrap mb-4 font-mono text-xs text-ink-soft">
+    <span>{{ task.get_list_display }}</span>
+    {% if task.parent %}
+      <span>·</span>
+      <a href="{% url 'project_detail' task.parent.id %}" class="text-water hover:underline">in {{ task.parent.title }}</a>
+    {% endif %}
+    {% if task.list == "waiting" and task.waiting_on %}
+      <span>·</span>
+      <span>waiting on {{ task.waiting_on }}</span>
+    {% endif %}
+  </div>
+
+  <div class="flex items-center gap-2 flex-wrap mb-4">
+    {% if task.big3 %}{% badge "big3" %}{% endif %}
+    {% if task.carried_over_count %}{% badge "carried_over" n=task.carried_over_count %}{% endif %}
+    {% if task.missed_block_count %}{% badge "missed" n=task.missed_block_count %}{% endif %}
+    {% if task.q2_active %}{% badge "q2" %}{% endif %}
+    {% if task.is_overdue_recurring %}{% badge "overdue" text=task.overdue_since_label %}{% endif %}
+  </div>
+
+  <form method="post" class="space-y-3 mb-6">
+    {% csrf_token %}
+    {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+    {% include "core/partials/field.html" with field=form.title %}
+    {% include "core/partials/field_tagged.html" with field=form.description all_tags=all_tags %}
+    <div class="grid grid-cols-2 gap-3">
+      {% include "core/partials/field.html" with field=form.horizon %}
+      {% include "core/partials/field.html" with field=form.due_date %}
+    </div>
+    {% include "core/partials/field.html" with field=form.area %}
+    <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save changes</button>
+  </form>
+
+  {% include "components/calendar_time_panel.html" %}
+
+  <div class="mb-6">
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Move</h2>
+    <div class="flex items-center gap-2 flex-wrap">
+      {% for move in menu_moves %}
+        <button type="button"
+                hx-post="{{ move.url }}"
+                hx-target="body" hx-swap="none"
+                onclick="setTimeout(() => window.location.reload(), 200)"
+                class="btn-secondary h-8 px-3 text-xs">
+          {{ move.label }}
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <p class="text-ink-soft text-xs font-mono">Created {{ task.created_at|date:"d M Y" }}</p>
+</div>
+{% endblock %}

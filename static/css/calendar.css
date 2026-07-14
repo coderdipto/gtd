@@ -4,16 +4,16 @@
    borders/colors in favor of the app's own tokens. */
 
 .fc {
-  --fc-border-color: #E5E7EB; /* line */
-  --fc-today-bg-color: rgba(15, 118, 110, 0.04); /* water @ 4% */
-  --fc-neutral-bg-color: #FFFFFF; /* surface */
-  --fc-page-bg-color: #FAFAF8; /* paper */
-  font-family: "Inter", sans-serif;
+  --fc-border-color: #E8DDD0; /* line */
+  --fc-today-bg-color: rgba(190, 81, 51, 0.04); /* water @ 4% */
+  --fc-neutral-bg-color: #FFFCF6; /* surface */
+  --fc-page-bg-color: #FAF3E5; /* paper */
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 0.875rem;
 }
 
 .fc .fc-toolbar-title {
-  font-family: "Bricolage Grotesque", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-weight: 700;
 }
 
@@ -27,25 +27,39 @@
   border: none;
   border-radius: 6px;
   font-size: 0.75rem;
-  font-family: "JetBrains Mono", monospace;
+  /* Body face, not mono: this renders the task title (docs/design.md's
+     mono-typeface rule is for dates/times/counters, not titles) - was
+     previously wide monospace at a narrow per-day column width, which is
+     why titles were truncating down to 1-2 characters. displayEventTime:
+     false (calendar.html) also drops the redundant "6:45 - 7:00 -" time
+     prefix FullCalendar prepends by default, freeing the space that was
+     actually eating into the title. */
+  font-family: "Plus Jakarta Sans", sans-serif;
+  cursor: pointer;
+}
+
+.fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fc .fc-button {
-  background-color: #FFFFFF;
-  border-color: #E5E7EB;
-  color: #1F2937;
+  background-color: #FFFCF6;
+  border-color: #E8DDD0;
+  color: #2A121B;
   text-transform: none;
   box-shadow: none;
 }
 
 .fc .fc-button:hover {
-  border-color: #0F766E;
-  color: #0F766E;
+  border-color: #BE5133;
+  color: #BE5133;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
-  background-color: #0F766E;
-  border-color: #0F766E;
+  background-color: #BE5133;
+  border-color: #BE5133;
   color: #FFFFFF;
 }

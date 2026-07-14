@@ -11,6 +11,7 @@ import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone as dt_timezone
+from urllib.parse import urlsplit
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
@@ -80,12 +81,14 @@ def _client_config():
     }
 
 
-def _build_flow(state=None):
+def _build_flow(state=None, code_verifier=None):
     # Imported lazily so a dev environment without the client config/network
     # access can still import this module (used from tests via mocks).
     from google_auth_oauthlib.flow import Flow
 
-    flow = Flow.from_client_config(_client_config(), scopes=CALENDAR_SCOPES, state=state)
+    flow = Flow.from_client_config(
+        _client_config(), scopes=CALENDAR_SCOPES, state=state, code_verifier=code_verifier
+    )
     flow.redirect_uri = settings.GOOGLE_OAUTH_REDIRECT
     return flow
 
@@ -100,6 +103,16 @@ def google_connect(request):
     flow = _build_flow()
     auth_url, state = flow.authorization_url(access_type="offline", prompt="consent", include_granted_scopes="true")
     request.session["google_oauth_state"] = state
+    # Flow.authorization_url() auto-generates a PKCE code_verifier on the fly
+    # (google_auth_oauthlib.flow.Flow, autogenerate_code_verifier=True) and
+    # only keeps it as an in-memory attribute on this Flow instance - which
+    # is discarded the moment this request ends. google_callback builds a
+    # brand new Flow object on the next request, so without persisting it
+    # here (same as `state` above) that second Flow has no code_verifier and
+    # Google's token endpoint rejects the exchange with "Missing code
+    # verifier" - a real bug the mocked tests never exercise, since they
+    # don't go through google_auth_oauthlib's actual PKCE machinery.
+    request.session["google_oauth_code_verifier"] = flow.code_verifier
     return redirect(auth_url)
 
 
@@ -113,7 +126,8 @@ def google_callback(request):
     if not code:
         return HttpResponseBadRequest("Missing authorization code.")
 
-    flow = _build_flow(state=state)
+    code_verifier = request.session.get("google_oauth_code_verifier")
+    flow = _build_flow(state=state, code_verifier=code_verifier)
     flow.fetch_token(code=code)
     creds = flow.credentials
 
@@ -124,7 +138,23 @@ def google_callback(request):
     gtd_calendar_id = client.create_gtd_calendar()
     credential.gtd_calendar_id = gtd_calendar_id
     credential.save(update_fields=["gtd_calendar_id"])
-    register_watch_channel(credential, gtd_calendar_id)
+    try:
+        register_watch_channel(credential, gtd_calendar_id)
+    except Exception:
+        # Push notifications are an optimization, not a requirement - the
+        # architecture (docs/solution-plan.md Step 8c) is explicitly
+        # "webhook + 15-min polling fallback", and sync_gcal already covers
+        # the polling half unconditionally. The most common real-world
+        # failure here is Google's hard "WebHook callback must be HTTPS"
+        # requirement rejecting a plain-http GOOGLE_OAUTH_REDIRECT (e.g.
+        # local dev, or a not-yet-HTTPS deploy) - letting that abort the
+        # whole connect flow would leave a saved, working credential behind
+        # an opaque 500 page instead of a successful "Connected" state.
+        event_id = uuid.uuid4().hex[:12]
+        logger.error(
+            "GCal watch channel registration failed [event_id=%s] calendar_id=%s", gtd_calendar_id, event_id,
+            exc_info=True,
+        )
 
     return redirect("settings")
 
@@ -195,7 +225,14 @@ class GoogleCalendarClient:
 def register_watch_channel(credential, calendar_id):
     client = GoogleCalendarClient(credential)
     channel_id = str(secrets.token_hex(16))
-    webhook_url = settings.GOOGLE_OAUTH_REDIRECT.rsplit("/", 1)[0] + reverse("gcal_webhook")
+    # GOOGLE_OAUTH_REDIRECT's path is /google/callback, not just a bare
+    # origin - rsplit("/", 1)[0] used to only drop "callback", leaving a
+    # stray /google segment in front of gcal/webhook's own top-level path
+    # (core/urls.py has it as "gcal/webhook", no /google/ prefix). Google
+    # rejected the resulting URL outright: real bug in both dev and prod,
+    # not just a local-only quirk.
+    origin = urlsplit(settings.GOOGLE_OAUTH_REDIRECT)
+    webhook_url = f"{origin.scheme}://{origin.netloc}" + reverse("gcal_webhook")
     expiration_ms = int((timezone.now() + timedelta(days=7)).timestamp() * 1000)
     result = client.watch(calendar_id, channel_id, webhook_url, expiration_ms)
     SyncChannel.objects.create(

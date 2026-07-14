@@ -1,4 +1,7 @@
 Django>=5.1,<5.2
+# Pinned below 0.97: that's the last release still compatible with the
+# Django<5.2 pin above (0.97+ requires Django>=5.2).
+django-unfold==0.96.0
 django-environ>=0.12,<1.0
 psycopg[binary]>=3.2,<4.0
 Markdown>=3.7,<4.0

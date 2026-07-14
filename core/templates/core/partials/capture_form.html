@@ -15,10 +15,12 @@
     <div x-show="detailsOpen" x-cloak>
       {{ form.description }}
     </div>
-    <button type="button" x-show="!detailsOpen" @click="detailsOpen = true"
-            class="text-xs text-ink-soft hover:text-water focus-visible:ring-2 ring-water focus:outline-none rounded-md">+ details</button>
-    <button type="submit"
-            class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Capture</button>
+    <div class="flex items-center gap-3">
+      <button type="button" x-show="!detailsOpen" @click="detailsOpen = true"
+              class="h-9 px-3 -ml-3 rounded-md text-xs text-ink-soft hover:text-water hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">+ details</button>
+      <button type="submit"
+              class="h-11 px-5 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Capture</button>
+    </div>
   </form>
 
   {% if not modal and recent %}

@@ -43,6 +43,24 @@
       editable: true,
       eventDrop: function (info) { patchBlock(info.event); },
       eventResize: function (info) { patchBlock(info.event); },
+      // The default "6:45 - 7:00 - <title>" prefix ate most of a narrow
+      // per-day column's width, truncating titles down to 1-2 characters -
+      // position in the grid already conveys the time, so just show the title.
+      displayEventTime: false,
+      eventDidMount: function (info) {
+        // Native tooltip: full title + exact time range, since the block's
+        // rendered width still won't fit a long title even without the
+        // time prefix above.
+        var fmt = { hour: "numeric", minute: "2-digit" };
+        var range = info.event.start.toLocaleTimeString([], fmt) + "–" + info.event.end.toLocaleTimeString([], fmt);
+        info.el.title = info.event.title + " (" + range + ")";
+      },
+      eventClick: function (info) {
+        // Busy events from the primary Google calendar (no local Task) have
+        // no detailUrl - only our own TimeBlocks are clickable.
+        var url = info.event.extendedProps.detailUrl;
+        if (url) window.location.href = url;
+      },
     });
     calendar.render();
   });

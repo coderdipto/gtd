@@ -8,8 +8,8 @@
     <div id="review-waiting-{{ task.id }}" class="flex items-center justify-between gap-2 py-2 px-2 border border-line rounded-md">
       <span class="text-sm truncate">{{ task.title }} <span class="text-ink-soft text-xs">— {{ task.waiting_on }}</span></span>
       <div class="flex items-center gap-2 shrink-0">
-        <button type="button" hx-post="{% url 'waiting_nudge' task.id %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="h-8 px-2 rounded-md border border-line text-xs">Nudged</button>
-        <button type="button" hx-post="{% url 'waiting_got_it' task.id %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="h-8 px-2 rounded-md border border-line text-xs">Got it</button>
+        <button type="button" hx-post="{% url 'waiting_nudge' task.id %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="btn-secondary h-8 px-2 text-xs">Nudged</button>
+        <button type="button" hx-post="{% url 'waiting_got_it' task.id %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="btn-secondary h-8 px-2 text-xs">Got it</button>
         <button type="button" hx-post="{% url 'task_move' task.id 'trash' %}" hx-target="#review-waiting-{{ task.id }}" hx-swap="outerHTML" class="h-8 px-2 rounded-md text-red text-xs">Drop</button>
       </div>
     </div>

@@ -10,7 +10,7 @@
       <div id="review-someday-{{ task.id }}" class="flex items-center justify-between text-sm py-1">
         <span>{{ task.title }}</span>
         <button type="button" hx-post="{% url 'someday_activate' task.id %}" hx-target="#review-someday-{{ task.id }}" hx-swap="outerHTML"
-                class="h-7 px-2 rounded-md border border-line text-xs">Activate</button>
+                class="btn-secondary h-7 px-2 text-xs">Activate</button>
       </div>
     {% empty %}
       <p class="text-ink-soft text-sm">Nothing parked.</p>
@@ -22,7 +22,7 @@
   {% csrf_token %}
   <label class="block text-xs text-ink-soft mb-1">Anything else on your mind?</label>
   <textarea name="capture" rows="3" class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none mb-2"></textarea>
-  <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Capture to inbox</button>
+  <button type="submit" class="btn-secondary h-9 px-3 text-sm">Capture to inbox</button>
 </form>
 
 <form method="post" class="mb-4">
@@ -36,7 +36,7 @@
       </label>
     {% endfor %}
   </div>
-  <button type="submit" name="set_big3" value="1" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Save Big 3</button>
+  <button type="submit" name="set_big3" value="1" class="btn-secondary h-9 px-3 text-sm">Save Big 3</button>
 </form>
 
 <form method="post">

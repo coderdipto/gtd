@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 from .google_calendar import get_credential
 from .models import Task
 from .tagging import sync_tags_from_text
+from .timeblocks import blocks_json
 
 
 def _project_state_badge(project):
@@ -52,6 +53,7 @@ def project_detail(request, pk):
 
     markers = {t.id: marker_for(t) for t in subtasks}
     flag_urls = {t.id: reverse("project_flag_next", args=[project.id, t.id]) for t in subtasks}
+    blocks = list(project.blocks.order_by("start"))
     return render(
         request,
         "core/project_detail.html",
@@ -62,7 +64,8 @@ def project_detail(request, pk):
             "markers": markers,
             "flag_urls": flag_urls,
             "badge": _project_state_badge(project),
-            "blocks": project.blocks.order_by("start"),
+            "blocks": blocks,
+            "blocks_json": blocks_json(blocks, project.title),
             "gcal_connected": get_credential() is not None,
         },
     )

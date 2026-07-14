@@ -1,6 +1,10 @@
 {% extends "base.html" %}
-{% load gtd_extras %}
+{% load gtd_extras static %}
 {% block title %}{{ project.title }} · GTD{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/calendar.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-6">
   <div class="flex items-center justify-between gap-3 mb-1">
@@ -11,7 +15,7 @@
             hx-confirm="Complete anyway? Subtasks will be completed too."
             hx-target="body" hx-swap="none"
             onclick="setTimeout(() => window.location = '{% url 'projects' %}', 200)"
-            class="h-9 px-3 rounded-md border border-line text-sm hover:border-water hover:text-water focus-visible:ring-2 ring-water focus:outline-none shrink-0">
+            class="btn-secondary h-9 px-3 text-sm shrink-0">
       Mark project done
     </button>
   </div>
@@ -56,38 +60,7 @@
     </form>
   </div>
 
-  <div class="mb-6">
-    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Calendar time</h2>
-    {% if not gcal_connected %}
-      <p class="text-ink-soft text-xs mb-2">Not synced to Google Calendar - blocks stay local-only until you <a href="{% url 'settings' %}" class="text-water hover:underline">connect it</a>.</p>
-    {% endif %}
-    <div class="space-y-1 mb-3">
-      {% for block in blocks %}
-        <div class="flex items-center justify-between text-sm py-1 font-mono">
-          <span class="{% if block.status == 'missed' %}text-red{% elif block.status == 'completed' %}text-ink-soft{% endif %}">
-            {{ block.start|date:"D d M H:i" }}–{{ block.end|date:"H:i" }}
-            {% if block.status == 'missed' %} · missed{% elif block.status == 'completed' %} · done{% endif %}
-          </span>
-          {% if block.status == 'scheduled' %}
-            <form method="post" action="{% url 'timeblock_delete' block.id %}">
-              {% csrf_token %}
-              <button type="submit" class="text-red text-xs hover:underline">Remove</button>
-            </form>
-          {% endif %}
-        </div>
-      {% empty %}
-        <p class="text-ink-soft text-sm">No blocks scheduled.</p>
-      {% endfor %}
-    </div>
-    <form method="post" action="{% url 'timeblock_create' project.id %}" class="flex items-center gap-2 flex-wrap">
-      {% csrf_token %}
-      <input type="datetime-local" name="start" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
-      <span class="text-ink-soft text-xs">to</span>
-      <input type="datetime-local" name="end" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
-      <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Add block</button>
-    </form>
-    <p class="text-ink-soft text-xs mt-2">Full drag/resize week view is on the <a href="{% url 'calendar_page' %}" class="text-water hover:underline">Calendar page</a>.</p>
-  </div>
+  {% include "components/calendar_time_panel.html" with task=project %}
 
   <p class="text-ink-soft text-xs font-mono">
     Created {{ project.created_at|date:"d M Y" }} · {{ project.progress_label }} subtasks complete

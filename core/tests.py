@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 from datetime import date, datetime, timedelta, timezone as dt_timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 from cryptography.fernet import Fernet
 from django.contrib.auth.models import User
@@ -30,7 +30,7 @@ from core.models import (
     TimeBlock,
 )
 from core.notifications import KINDS, is_kind_enabled, notify
-from core.recurring import build_rrule, parse_rrule
+from core.recurring import build_rrule, humanize_rrule, parse_rrule
 from core.reviews import WEEKLY_PHASES
 from core.tagging import extract_tags, sync_tags_from_text
 
@@ -415,6 +415,20 @@ class ClarifyWizardTests(TestCase):
             self.assertEqual(response.status_code, 200, name)
             self.assertContains(response, "tagTypeahead(")
 
+    def test_tag_typeahead_json_is_html_escaped_when_tags_exist(self):
+        # Regression: field_tagged.html previously rendered
+        # `x-data="tagTypeahead({{ all_tags|safe }})"`, which skips Django's
+        # default HTML-attribute escaping. The JSON's own `"` characters then
+        # closed the x-data="..." attribute early at the very first tag,
+        # truncating the value to `tagTypeahead([{` and leaving the rest as
+        # bogus trailing attributes - invisible with zero tags in the DB (the
+        # only case the test above exercises), only breaking once a real Tag
+        # exists (caught via a live browser console, not this test suite).
+        Tag.objects.create(name="errands", is_context=True)
+        item = InboxItem.objects.create(title="Something")
+        response = self.client.get(reverse("clarify_single", args=[item.id]))
+        self.assertContains(response, "tagTypeahead([{&quot;name&quot;")
+
     def test_progress_counter_advances_across_the_session(self):
         first = InboxItem.objects.create(title="First")
         second = InboxItem.objects.create(title="Second")
@@ -600,6 +614,51 @@ class ProjectViewTests(TestCase):
         subs = list(project.subtasks.order_by("sort_order"))
         self.assertTrue(subs[0].is_next_action)
         self.assertFalse(subs[1].is_next_action)
+
+    def test_detail_loads_fullcalendar_for_the_drag_to_create_mini_calendar(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertContains(response, "fullcalendar@")
+        self.assertContains(response, "fc-mini-calendar")
+        # Scoped per-template (docs/design.md's documented CDN exception),
+        # not loaded globally in base.html - a plain list screen shouldn't
+        # pull in FullCalendar at all.
+        tasks_response = self.client.get(reverse("tasks"))
+        self.assertNotContains(tasks_response, "fullcalendar@")
+
+    def test_detail_embeds_existing_blocks_as_json_for_the_mini_calendar(self):
+        project = Task.objects.create(title="Project", is_project=True)
+        block = TimeBlock.objects.create(
+            task=project, start=timezone.now(), end=timezone.now() + timedelta(hours=1)
+        )
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertContains(response, block.start.isoformat())
+        # Regression: these events used to have no title at all, rendering
+        # blank on the mini calendar - same underlying complaint as the main
+        # /calendar page (events with no readable identifying text). Escaped
+        # (&quot;) since blocks_json now renders into a data-events="..."
+        # HTML attribute, not a <script> tag - see core/timeblocks.py's
+        # blocks_json() for why that escaping is required, not optional.
+        self.assertContains(response, "&quot;title&quot;: &quot;Project&quot;")
+
+    def test_mini_calendar_events_json_is_html_escaped_in_the_data_attribute(self):
+        # Regression: data-events="{{ blocks_json }}" must NOT be |safe - an
+        # unescaped `"` in a title would otherwise close the attribute
+        # early, exactly like field_tagged.html's tagTypeahead bug earlier.
+        project = Task.objects.create(title='Say "hi"', is_project=True)
+        TimeBlock.objects.create(task=project, start=timezone.now(), end=timezone.now() + timedelta(hours=1))
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertContains(response, "&quot;Say \\&quot;hi\\&quot;&quot;")
+
+    def test_mini_calendar_select_reuses_the_manual_add_block_form(self):
+        # The select() JS handler fills #add-block-form's own start/end
+        # inputs and calls requestSubmit() rather than posting to a separate
+        # endpoint - this just asserts that wiring point (the form id) still
+        # exists, since a template rename would silently break the handler
+        # with no server-side error to catch it.
+        project = Task.objects.create(title="Project", is_project=True)
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertContains(response, 'id="add-block-form"')
 
     def test_flag_next_toggle(self):
         project = Task.objects.create(title="Project", is_project=True)
@@ -857,6 +916,37 @@ class RRuleRoundTripTests(TestCase):
         self.assertEqual(parsed["interval"], 3)
 
 
+class HumanizeRRuleTests(TestCase):
+    # Regression: recurring.html/recurring_detail.html used to show the raw
+    # RFC5545 string ("FREQ=WEEKLY;BYDAY=MO") verbatim to the user.
+
+    def test_daily(self):
+        self.assertEqual(humanize_rrule("FREQ=DAILY"), "Daily")
+
+    def test_weekly_with_no_days(self):
+        self.assertEqual(humanize_rrule("FREQ=WEEKLY"), "Weekly")
+
+    def test_weekly_with_one_day(self):
+        self.assertEqual(humanize_rrule("FREQ=WEEKLY;BYDAY=MO"), "Weekly on Mon")
+
+    def test_weekly_with_multiple_days(self):
+        self.assertEqual(humanize_rrule("FREQ=WEEKLY;BYDAY=MO,WE,FR"), "Weekly on Mon, Wed, Fri")
+
+    def test_monthly(self):
+        self.assertEqual(humanize_rrule("FREQ=MONTHLY"), "Monthly")
+
+    def test_yearly(self):
+        self.assertEqual(humanize_rrule("FREQ=YEARLY"), "Yearly")
+
+    def test_interval_pluralizes_the_unit_and_drops_the_bare_frequency_label(self):
+        self.assertEqual(humanize_rrule("FREQ=DAILY;INTERVAL=3"), "Every 3 days")
+        self.assertEqual(humanize_rrule("FREQ=WEEKLY;BYDAY=TU;INTERVAL=2"), "Every 2 weeks on Tue")
+
+    def test_unparseable_string_falls_back_to_itself_rather_than_raising(self):
+        # A template filter shouldn't 500 a page over a display nicety.
+        self.assertEqual(humanize_rrule("FREQ=FORTNIGHTLY"), "FREQ=FORTNIGHTLY")
+
+
 class MaterializeRecurringTests(TestCase):
     def setUp(self):
         self.template = RecurringTemplate.objects.create(
@@ -973,6 +1063,15 @@ class RecurringScreensSmokeTests(TestCase):
         for name in ("recurring_detail", "recurring_edit"):
             response = self.client.get(reverse(name, args=[template.id]))
             self.assertEqual(response.status_code, 200, name)
+
+    def test_list_and_detail_show_the_human_readable_rule_not_the_raw_rrule(self):
+        template = RecurringTemplate.objects.create(title="Standup", rrule="FREQ=WEEKLY;BYDAY=MO,WE,FR")
+        list_response = self.client.get(reverse("recurring"))
+        self.assertContains(list_response, "Weekly on Mon, Wed, Fri")
+        detail_response = self.client.get(reverse("recurring_detail", args=[template.id]))
+        self.assertContains(detail_response, "Weekly on Mon, Wed, Fri")
+        # Raw RRULE is still available as a tooltip, not gone entirely.
+        self.assertContains(detail_response, 'title="FREQ=WEEKLY;BYDAY=MO,WE,FR"')
 
     def test_create_without_title_reshows_form_with_error(self):
         response = self.client.post(reverse("recurring_create"), {"title": "", "freq": "DAILY"})
@@ -1117,6 +1216,112 @@ class GoogleConnectFlowTests(TestCase):
         session.save()
         response = self.client.get(reverse("google_callback"), {"state": "wrong-state", "code": "abc"})
         self.assertEqual(response.status_code, 400)
+
+    def test_connect_stashes_the_pkce_code_verifier_in_session(self):
+        # Regression: Flow.authorization_url() auto-generates a PKCE
+        # code_verifier that lives only as an in-memory attribute on that
+        # Flow instance - discarded once this request ends. Without saving
+        # it here (same idea as `state`, just above it in the session),
+        # google_callback's *separate* Flow object has no code_verifier at
+        # all and Google's token endpoint rejects the exchange with
+        # "(invalid_grant) Missing code verifier." Real bug, never caught by
+        # the mocked-_build_flow test below since that test skips this
+        # library machinery entirely.
+        self.client.get(reverse("google_connect"))
+        verifier = self.client.session["google_oauth_code_verifier"]
+        self.assertTrue(verifier)
+        self.assertGreaterEqual(len(verifier), 43)  # RFC 7636 minimum length
+
+    def test_build_flow_carries_a_given_code_verifier_through_to_the_flow_object(self):
+        # Direct check of the google_auth_oauthlib API this fix relies on:
+        # passing code_verifier= through Flow.from_client_config actually
+        # sets it as the attribute Flow.fetch_token() later reads.
+        from core.google_calendar import _build_flow
+
+        flow = _build_flow(code_verifier="a-specific-verifier")
+        self.assertEqual(flow.code_verifier, "a-specific-verifier")
+
+    @patch("core.google_calendar.register_watch_channel")
+    @patch("core.google_calendar.GoogleCalendarClient.create_gtd_calendar")
+    @patch("core.google_calendar._build_flow")
+    def test_callback_rebuilds_the_flow_with_the_code_verifier_from_connect(
+        self, mock_build_flow, mock_create_cal, mock_register
+    ):
+        session = self.client.session
+        session["google_oauth_state"] = "matching-state"
+        session["google_oauth_code_verifier"] = "verifier-from-connect-step"
+        session.save()
+
+        mock_flow = MagicMock()
+        mock_flow.credentials.refresh_token = "the-refresh-token"
+        mock_build_flow.return_value = mock_flow
+        mock_create_cal.return_value = "gtd-calendar-id"
+
+        self.client.get(reverse("google_callback"), {"state": "matching-state", "code": "auth-code"})
+        mock_build_flow.assert_called_once_with(state="matching-state", code_verifier="verifier-from-connect-step")
+
+    @patch("core.google_calendar.GoogleCalendarClient.watch")
+    def test_register_watch_channel_builds_webhook_url_without_a_stray_path_segment(self, mock_watch):
+        # Regression: GOOGLE_OAUTH_REDIRECT's path is /google/callback, not a
+        # bare origin. rsplit("/", 1)[0] used to only drop "callback",
+        # leaving a stray /google in front of gcal/webhook's own top-level
+        # path (core/urls.py has no /google/ prefix on it) - Google flatly
+        # rejected the resulting URL: real bug in prod too, not just local.
+        from core.google_calendar import register_watch_channel
+
+        credential = GoogleCredential.objects.create(refresh_token=b"x", gtd_calendar_id="cal1")
+        mock_watch.return_value = {"resourceId": "res1"}
+        register_watch_channel(credential, "cal1")
+        mock_watch.assert_called_once_with("cal1", ANY, "http://testserver/gcal/webhook", ANY)
+
+    @patch("core.google_calendar.register_watch_channel")
+    @patch("core.google_calendar.GoogleCalendarClient.create_gtd_calendar")
+    @patch("core.google_calendar._build_flow")
+    def test_callback_still_succeeds_when_watch_channel_registration_fails(
+        self, mock_build_flow, mock_create_cal, mock_register
+    ):
+        # Regression: register_watch_channel can legitimately fail for
+        # reasons outside this app's control - most commonly Google's hard
+        # "WebHook callback must be HTTPS" requirement rejecting a plain-http
+        # GOOGLE_OAUTH_REDIRECT (local dev, or a deploy not yet on HTTPS).
+        # Push notifications are an optimization on top of the unconditional
+        # 15-min sync_gcal polling fallback (docs/solution-plan.md Step 8c),
+        # so that failure must not abort an otherwise-successful connect and
+        # strand the user on an opaque 500 page.
+        session = self.client.session
+        session["google_oauth_state"] = "matching-state"
+        session["google_oauth_code_verifier"] = "verifier"
+        session.save()
+
+        mock_flow = MagicMock()
+        mock_flow.credentials.refresh_token = "the-refresh-token"
+        mock_build_flow.return_value = mock_flow
+        mock_create_cal.return_value = "gtd-calendar-id"
+        mock_register.side_effect = Exception("WebHook callback must be HTTPS")
+
+        with self.assertLogs("core.google_calendar", level="ERROR"):
+            response = self.client.get(reverse("google_callback"), {"state": "matching-state", "code": "auth-code"})
+        self.assertRedirects(response, reverse("settings"))
+        credential = GoogleCredential.objects.get()
+        self.assertEqual(credential.gtd_calendar_id, "gtd-calendar-id")
+
+    @gcal_settings
+    def test_connect_link_opts_out_of_hx_boost(self):
+        # Regression: base.html's <body hx-boost="true"> AJAX-intercepts same-
+        # origin links by default. Without hx-boost="false" here, clicking
+        # "Connect Google" turns the navigation into an XHR that follows the
+        # redirect to accounts.google.com and gets CORS-blocked there (Google's
+        # OAuth endpoint only accepts a real top-level navigation) - the
+        # button silently does nothing. Caught via a live browser console,
+        # not this test suite, since the Django test client doesn't run htmx.
+        response = self.client.get(reverse("settings"))
+        self.assertContains(response, 'hx-boost="false"')
+        # The explanatory comment above the link must actually be stripped by
+        # the template engine, not leak into the page as visible text (a
+        # {# ... #} comment spanning multiple lines silently fails to parse
+        # as a comment in Django templates - only {% comment %}...{% endcomment %}
+        # is safe across lines). Caught by eye in the real page, not here.
+        self.assertNotContains(response, "AJAX-intercept")
 
     @patch("core.google_calendar.register_watch_channel")
     @patch("core.google_calendar.GoogleCalendarClient.create_gtd_calendar")
@@ -1377,9 +1582,23 @@ class TimeblockViewTests(TestCase):
             reverse("timeblock_create", args=[self.task.id]),
             {"start": "2026-07-15T09:00", "end": "2026-07-15T10:00"},
         )
-        self.assertEqual(response.status_code, 200)
+        # Regression: this used to return a raw JsonResponse({"id": ...}),
+        # but the only real caller is a plain <form method=post> (project
+        # detail's "Add block") relying on <body hx-boost="true">, which
+        # AJAX-intercepts the submit and expects a redirect back - a JSON
+        # body instead got swapped straight into the page as literal
+        # `{"id": 1}` text, with that URL pushed into the address bar.
+        self.assertRedirects(response, reverse("task_detail", args=[self.task.id]))
         block = TimeBlock.objects.get(task=self.task)
         self.assertEqual(block.gcal_event_id, "")
+
+    def test_create_on_a_project_redirects_to_project_detail(self):
+        project = Task.objects.create(title="Launch site", is_project=True)
+        response = self.client.post(
+            reverse("timeblock_create", args=[project.id]),
+            {"start": "2026-07-15T09:00", "end": "2026-07-15T10:00"},
+        )
+        self.assertRedirects(response, reverse("project_detail", args=[project.id]))
 
     @gcal_settings
     @patch("core.timeblocks.GoogleCalendarClient.insert_event")
@@ -1408,8 +1627,19 @@ class TimeblockViewTests(TestCase):
         block = TimeBlock.objects.create(
             task=self.task, start=timezone.now(), end=timezone.now() + timedelta(hours=1)
         )
-        self.client.post(reverse("timeblock_delete", args=[block.id]))
+        response = self.client.post(reverse("timeblock_delete", args=[block.id]))
         self.assertFalse(TimeBlock.objects.filter(id=block.id).exists())
+        # Same boosted-plain-form issue as create above: an empty
+        # HttpResponse("") used to leave the page blank at this URL.
+        self.assertRedirects(response, reverse("task_detail", args=[self.task.id]))
+
+    def test_delete_on_a_project_block_redirects_to_project_detail(self):
+        project = Task.objects.create(title="Launch site", is_project=True)
+        block = TimeBlock.objects.create(
+            task=project, start=timezone.now(), end=timezone.now() + timedelta(hours=1)
+        )
+        response = self.client.post(reverse("timeblock_delete", args=[block.id]))
+        self.assertRedirects(response, reverse("project_detail", args=[project.id]))
 
 
 class CalendarScreenSmokeTests(TestCase):
@@ -1429,6 +1659,25 @@ class CalendarScreenSmokeTests(TestCase):
         data = json.loads(response.content)
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["title"], "Focus block")
+
+    def test_events_json_links_a_plain_task_block_to_its_task_detail_page(self):
+        # Regression: block events used to carry only a title with no way
+        # to reach the underlying task from the calendar - the title itself
+        # was also nearly unreadable (wide mono font + a redundant
+        # "6:45 - 7:00 -" time prefix eating most of a narrow day column's
+        # width). eventClick (calendar.html) navigates here on click.
+        task = Task.objects.create(title="Focus block")
+        TimeBlock.objects.create(task=task, start=timezone.now(), end=timezone.now() + timedelta(hours=1))
+        response = self.client.get(reverse("calendar_events_json"))
+        data = json.loads(response.content)
+        self.assertEqual(data[0]["extendedProps"]["detailUrl"], reverse("task_detail", args=[task.id]))
+
+    def test_events_json_links_a_project_block_to_project_detail(self):
+        project = Task.objects.create(title="Launch site", is_project=True)
+        TimeBlock.objects.create(task=project, start=timezone.now(), end=timezone.now() + timedelta(hours=1))
+        response = self.client.get(reverse("calendar_events_json"))
+        data = json.loads(response.content)
+        self.assertEqual(data[0]["extendedProps"]["detailUrl"], reverse("project_detail", args=[project.id]))
 
     def test_settings_shows_not_connected_by_default(self):
         response = self.client.get(reverse("settings"))
@@ -2174,3 +2423,164 @@ class SyncErrorLoggingTests(TestCase):
             with self.assertRaises(HttpError):
                 sync_calendar(credential)
         self.assertIn("event_id", log_ctx.output[0])
+
+
+class AreaViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_areas_page_lists_existing_areas(self):
+        Area.objects.create(name="Health")
+        response = self.client.get(reverse("areas"))
+        self.assertContains(response, "Health")
+
+    def test_create_adds_a_new_area(self):
+        self.client.post(reverse("area_create"), {"name": "Career", "description": "Work stuff"})
+        area = Area.objects.get(name="Career")
+        self.assertEqual(area.description, "Work stuff")
+
+    def test_create_with_blank_name_reshows_form_with_errors_and_does_not_create(self):
+        response = self.client.post(reverse("area_create"), {"name": "", "description": ""})
+        self.assertEqual(Area.objects.count(), 0)
+        self.assertContains(response, "This field is required")
+
+    def test_create_rejects_duplicate_name(self):
+        Area.objects.create(name="Health")
+        self.client.post(reverse("area_create"), {"name": "Health", "description": ""})
+        self.assertEqual(Area.objects.filter(name="Health").count(), 1)
+
+    def test_edit_updates_name_description_and_sort_order(self):
+        area = Area.objects.create(name="Health", sort_order=0)
+        self.client.post(
+            reverse("area_edit", args=[area.id]),
+            {"name": "Health & Fitness", "description": "Gym, sleep, food", "sort_order": "5"},
+        )
+        area.refresh_from_db()
+        self.assertEqual(area.name, "Health & Fitness")
+        self.assertEqual(area.description, "Gym, sleep, food")
+        self.assertEqual(area.sort_order, 5)
+
+    def test_delete_removes_area_and_nulls_it_on_related_task(self):
+        area = Area.objects.create(name="Health")
+        task = Task.objects.create(title="Run 5k", area=area)
+        self.client.post(reverse("area_delete", args=[area.id]))
+        self.assertFalse(Area.objects.filter(id=area.id).exists())
+        task.refresh_from_db()
+        self.assertIsNone(task.area)
+
+    def test_task_count_reflects_linked_tasks(self):
+        area = Area.objects.create(name="Health")
+        Task.objects.create(title="Run 5k", area=area)
+        Task.objects.create(title="Sleep 8h", area=area)
+        response = self.client.get(reverse("areas"))
+        self.assertContains(response, "2 tasks")
+
+    def test_sidebar_and_calendar_links_present(self):
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, reverse("areas"))
+        self.assertContains(response, reverse("calendar_page"))
+
+
+class TaskDetailViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_detail_page_shows_task_title_and_description(self):
+        task = Task.objects.create(title="Buy milk", description="2% please")
+        response = self.client.get(reverse("task_detail", args=[task.id]))
+        self.assertContains(response, "Buy milk")
+        self.assertContains(response, "2% please")
+
+    def test_project_returns_404_here_since_it_has_its_own_detail_screen(self):
+        project = Task.objects.create(title="Launch site", is_project=True)
+        response = self.client.get(reverse("task_detail", args=[project.id]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_edit_form_updates_title_description_and_syncs_tags(self):
+        task = Task.objects.create(title="Buy milk")
+        response = self.client.post(
+            reverse("task_detail", args=[task.id]),
+            {
+                "title": "Buy oat milk",
+                "description": "@errands #grocery",
+                "horizon": Task.Horizon.ANYTIME,
+                "due_date": "",
+                "area": "",
+            },
+        )
+        self.assertRedirects(response, reverse("task_detail", args=[task.id]))
+        task.refresh_from_db()
+        self.assertEqual(task.title, "Buy oat milk")
+        self.assertEqual({t.name for t in task.tags.all()}, {"errands", "grocery"})
+
+    def test_task_row_title_links_to_detail_page(self):
+        task = Task.objects.create(title="Buy milk", list=Task.List.NEXT)
+        response = self.client.get(reverse("tasks"))
+        self.assertContains(response, reverse("task_detail", args=[task.id]))
+
+    def test_move_button_urls_present_on_detail_page(self):
+        task = Task.objects.create(title="Buy milk")
+        response = self.client.get(reverse("task_detail", args=[task.id]))
+        self.assertContains(response, reverse("task_move", args=[task.id, "someday"]))
+        self.assertContains(response, reverse("task_move", args=[task.id, "waiting"]))
+        self.assertContains(response, reverse("task_move", args=[task.id, "trash"]))
+
+    def test_tag_typeahead_json_is_html_escaped_when_tags_exist(self):
+        Tag.objects.create(name="errands", is_context=True)
+        task = Task.objects.create(title="Buy milk")
+        response = self.client.get(reverse("task_detail", args=[task.id]))
+        self.assertContains(response, "tagTypeahead([{&quot;name&quot;")
+
+    def test_detail_page_offers_calendar_time_panel_for_plain_tasks_too(self):
+        # Blocking calendar time was only ever project-restricted in the UI,
+        # never at the model/view layer (TimeBlock.task accepts any Task,
+        # and timeblock_create/delete already redirected to task_detail for
+        # non-project tasks) - components/calendar_time_panel.html is now
+        # shared by both detail screens instead of being project_detail-only.
+        task = Task.objects.create(title="Buy milk")
+        block = TimeBlock.objects.create(
+            task=task, start=timezone.now(), end=timezone.now() + timedelta(hours=1)
+        )
+        response = self.client.get(reverse("task_detail", args=[task.id]))
+        self.assertContains(response, "Calendar time")
+        self.assertContains(response, "fc-mini-calendar")
+        self.assertContains(response, "fullcalendar@")
+        self.assertContains(response, reverse("timeblock_create", args=[task.id]))
+        self.assertContains(response, reverse("timeblock_delete", args=[block.id]))
+
+    def _valid_post(self, task, **overrides):
+        data = {
+            "title": task.title,
+            "description": "",
+            "horizon": Task.Horizon.ANYTIME,
+            "due_date": "",
+            "area": "",
+        }
+        data.update(overrides)
+        return data
+
+    def test_task_row_link_carries_next_back_to_the_list_it_came_from(self):
+        task = Task.objects.create(title="Buy milk", list=Task.List.NEXT)
+        response = self.client.get(reverse("tasks"))
+        self.assertContains(response, f'{reverse("task_detail", args=[task.id])}?next={reverse("tasks")}')
+
+    def test_save_redirects_back_to_next_when_provided(self):
+        task = Task.objects.create(title="Buy milk")
+        url = reverse("task_detail", args=[task.id]) + "?next=/tasks/"
+        response = self.client.post(url, self._valid_post(task, next="/tasks/"))
+        self.assertRedirects(response, "/tasks/")
+
+    def test_save_falls_back_to_detail_page_when_no_next_given(self):
+        task = Task.objects.create(title="Buy milk")
+        response = self.client.post(reverse("task_detail", args=[task.id]), self._valid_post(task))
+        self.assertRedirects(response, reverse("task_detail", args=[task.id]))
+
+    def test_save_ignores_an_off_site_next_to_avoid_open_redirect(self):
+        task = Task.objects.create(title="Buy milk")
+        response = self.client.post(
+            reverse("task_detail", args=[task.id]),
+            self._valid_post(task, next="https://evil.example.com/"),
+        )
+        self.assertRedirects(response, reverse("task_detail", args=[task.id]))

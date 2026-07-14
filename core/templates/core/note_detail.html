@@ -7,7 +7,7 @@
     <h1 class="font-display font-bold text-2xl truncate" x-show="!editing">{{ note.title }}</h1>
     <div class="flex items-center gap-2 shrink-0">
       <button type="button" @click="editing = !editing"
-              class="h-9 px-3 rounded-md border border-line text-sm hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+              class="btn-secondary h-9 px-3 text-sm">
         <span x-text="editing ? 'Cancel' : 'Edit'"></span>
       </button>
       <form method="post" action="{% url 'note_delete' note.id %}"
@@ -57,7 +57,7 @@
     <form method="post" action="{% url 'note_attachment_upload' note.id %}" enctype="multipart/form-data" class="flex items-center gap-2">
       {% csrf_token %}
       <input type="file" name="file" required class="text-sm">
-      <button type="submit" class="h-9 px-3 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none">Upload (max 20MB)</button>
+      <button type="submit" class="btn-secondary h-9 px-3 text-xs">Upload (max 20MB)</button>
     </form>
   </div>
 </div>

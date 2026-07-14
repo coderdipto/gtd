@@ -8,21 +8,25 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        paper: "#FAFAF8",
-        surface: "#FFFFFF",
-        ink: "#1F2937",
-        "ink-soft": "#6B7280",
-        line: "#E5E7EB",
-        water: "#0F766E",
-        "water-soft": "#CCFBF1",
+        // Warm/editorial palette recolored 2026-07-14, taking cues from
+        // cocoindex.io (parchment bg, deep maroon ink, terracotta accent).
+        // Token names kept stable so every bg-water/text-ink/etc. usage
+        // across templates cascades without per-template edits.
+        paper: "#FAF3E5",
+        surface: "#FFFCF6",
+        ink: "#2A121B",
+        "ink-soft": "#7C6259",
+        line: "#E8DDD0",
+        water: "#BE5133",
+        "water-soft": "#F8E3D6",
         amber: { DEFAULT: "#B45309", bg: "#FEF3C7" },
         red: { DEFAULT: "#B91C1C", bg: "#FEE2E2" },
         violet: { DEFAULT: "#6D28D9", bg: "#EDE9FE" },
         star: "#CA8A04",
       },
       fontFamily: {
-        display: ["Bricolage Grotesque", "sans-serif"],
-        body: ["Inter", "sans-serif"],
+        display: ["Plus Jakarta Sans", "sans-serif"],
+        body: ["Plus Jakarta Sans", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       borderRadius: {

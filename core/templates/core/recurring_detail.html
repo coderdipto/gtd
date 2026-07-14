@@ -7,11 +7,11 @@
     <h1 class="font-display font-bold text-2xl truncate">{{ template.title }}</h1>
     <div class="flex items-center gap-2 shrink-0">
       <a href="{% url 'recurring_edit' template.id %}"
-         class="h-9 px-3 rounded-md border border-line text-sm hover:border-water focus-visible:ring-2 ring-water focus:outline-none">Edit</a>
+         class="btn-secondary h-9 px-3 text-sm">Edit</a>
       {% if template.active %}
         <form method="post" action="{% url 'recurring_deactivate' template.id %}">
           {% csrf_token %}
-          <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-red hover:text-red focus-visible:ring-2 ring-water focus:outline-none">Deactivate</button>
+          <button type="submit" class="btn-secondary-danger h-9 px-3 text-sm">Deactivate</button>
         </form>
       {% else %}
         <form method="post" action="{% url 'recurring_activate' template.id %}">
@@ -21,7 +21,7 @@
       {% endif %}
     </div>
   </div>
-  <p class="font-mono text-xs text-ink-soft mb-4">{{ template.rrule }}{% if not template.active %} · inactive{% endif %}</p>
+  <p class="text-xs text-ink-soft mb-4" title="{{ template.rrule }}">{{ template.rrule|humanize_rrule }}{% if not template.active %} · inactive{% endif %}</p>
 
   {% if overdue_count %}
     <div class="mb-4 rounded-md border border-amber bg-amber-bg p-3 flex items-center justify-between gap-3">
@@ -33,7 +33,7 @@
         </form>
         <form method="post" action="{% url 'recurring_trash_overdue' template.id %}" hx-confirm="Trash all overdue instances?">
           {% csrf_token %}
-          <button type="submit" class="h-8 px-3 rounded-md border border-line text-xs hover:border-red hover:text-red">Trash all overdue</button>
+          <button type="submit" class="btn-secondary-danger h-8 px-3 text-xs">Trash all overdue</button>
         </form>
       </div>
     </div>

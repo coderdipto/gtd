@@ -10,7 +10,7 @@
     <button type="button"
             hx-post="{% url 'notification_test_fire' kind %}"
             hx-target="#notif-test-{{ kind }}" hx-swap="innerHTML"
-            class="h-7 px-2 rounded-md border border-line text-xs hover:border-water">Test</button>
+            class="btn-secondary h-7 px-2 text-xs">Test</button>
     <span id="notif-test-{{ kind }}" class="text-xs text-ink-soft"></span>
   </div>
 </div>

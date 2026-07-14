@@ -9,7 +9,7 @@
       <span>{{ task.title }}</span>
       <div class="flex items-center gap-2 shrink-0">
         <button type="button" hx-post="{% url 'someday_activate' task.id %}" hx-target="#monthly-someday-{{ task.id }}" hx-swap="outerHTML"
-                class="h-7 px-2 rounded-md border border-line text-xs">Activate</button>
+                class="btn-secondary h-7 px-2 text-xs">Activate</button>
         <button type="button" hx-post="{% url 'task_move' task.id 'trash' %}" hx-target="#monthly-someday-{{ task.id }}" hx-swap="outerHTML"
                 class="h-7 px-2 rounded-md text-red text-xs">Let go</button>
       </div>

@@ -2,8 +2,9 @@ import secrets
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -36,6 +37,10 @@ def _capture_form_context(form=None):
     }
 
 
+def _unprocessed_inbox_items():
+    return InboxItem.objects.filter(processed_at__isnull=True).order_by("-created_at")
+
+
 @login_required
 def capture_page(request):
     return render(request, "core/capture.html", _capture_form_context())
@@ -62,7 +67,20 @@ def inbox_item_create(request):
     context = _capture_form_context(form=form)
     context["just_captured"] = just_captured
     context["modal"] = request.POST.get("from_modal") == "1"
-    return render(request, "core/partials/capture_form.html", context)
+    html = render_to_string("core/partials/capture_form.html", context, request=request)
+    if just_captured:
+        # The capture form only swaps itself, so a capture from the modal
+        # (or the /capture page) never touches the Inbox list, the header
+        # trust strip, or the sidebar count sitting elsewhere in the page —
+        # they'd otherwise only update on a manual refresh. OOB-swap all
+        # three; htmx silently drops any fragment whose id isn't present on
+        # whatever page the user actually captured from.
+        html += render_to_string(
+            "core/partials/inbox_body.html", {"items": _unprocessed_inbox_items(), "oob": True}, request=request
+        )
+        html += render_to_string("core/partials/trust_strip.html", {"oob": True}, request=request)
+        html += render_to_string("core/partials/sidebar_inbox_count.html", {"oob": True}, request=request)
+    return HttpResponse(html)
 
 
 # --- Inbox (Step 3) ---
@@ -70,8 +88,7 @@ def inbox_item_create(request):
 
 @login_required
 def inbox_page(request):
-    items = InboxItem.objects.filter(processed_at__isnull=True).order_by("-created_at")
-    return render(request, "core/inbox.html", {"items": items})
+    return render(request, "core/inbox.html", {"items": _unprocessed_inbox_items()})
 
 
 @login_required
@@ -81,7 +98,13 @@ def inbox_item_done(request, pk):
     item.done_directly = True
     item.processed_at = timezone.now()
     item.save(update_fields=["done_directly", "processed_at"])
-    return render(request, "core/partials/inbox_row_removed.html", {"item": item})
+    html = render_to_string("core/partials/inbox_row_removed.html", {"item": item}, request=request)
+    # The row removes itself via its own Alpine fade, so only the counts
+    # elsewhere on the page (trust strip, sidebar) need an OOB refresh here —
+    # same staleness this row's own removal doesn't otherwise cause.
+    html += render_to_string("core/partials/trust_strip.html", {"oob": True}, request=request)
+    html += render_to_string("core/partials/sidebar_inbox_count.html", {"oob": True}, request=request)
+    return HttpResponse(html)
 
 
 # --- Settings: capture tokens (Step 3) ---

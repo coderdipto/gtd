@@ -1,13 +1,11 @@
-import json
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import DelegateForm, NoteForm, ProjectForm, SingleActionForm, SomedayForm
-from .models import InboxItem, Tag, Task
-from .tagging import sync_tags_from_text
+from .models import InboxItem, Task
+from .tagging import all_tags_json, sync_tags_from_text
 
 # The clarify wizard processes InboxItems oldest-first, one at a time (no
 # cherry-picking - solution-plan.md Step 4's cardinal rule). It has no DB-backed
@@ -130,14 +128,6 @@ def clarify_actionable_type(request, pk):
 # invalid/erroring form instead of advancing.
 
 
-def _all_tags_json():
-    # Feeds the Alpine typeahead (static/js/tag-typeahead.js) on free-text
-    # description/body fields - just existing tag names to suggest from, the
-    # actual @/# parsing on save is core/tagging.py, this is UI sugar only.
-    tags = [{"name": t.name, "is_context": t.is_context} for t in Tag.objects.all()]
-    return json.dumps(tags)
-
-
 def _clarify_form_screen(request, pk, form_class, template_name, initial_fn, on_valid, extra_context_fn=None):
     item = _get_item_or_none(pk)
     if not item:
@@ -155,7 +145,7 @@ def _clarify_form_screen(request, pk, form_class, template_name, initial_fn, on_
         "form": form,
         "step": processed + 1,
         "total": total,
-        "all_tags": _all_tags_json(),
+        "all_tags": all_tags_json(),
     }
     if extra_context_fn:
         context.update(extra_context_fn(request))

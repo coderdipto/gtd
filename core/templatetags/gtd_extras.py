@@ -2,7 +2,11 @@ import markdown as _markdown
 from django import template
 from django.utils.safestring import mark_safe
 
+from ..recurring import humanize_rrule as _humanize_rrule
+
 register = template.Library()
+
+register.filter("humanize_rrule", _humanize_rrule)
 
 
 @register.filter

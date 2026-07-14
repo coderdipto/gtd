@@ -2,7 +2,21 @@ from functools import partial
 
 from django.urls import path
 
-from . import clarify, google_calendar, lists, notes, projects, recurring, reviews, stats, tags, timeblocks, views
+from . import (
+    areas,
+    clarify,
+    google_calendar,
+    lists,
+    notes,
+    projects,
+    recurring,
+    reviews,
+    stats,
+    tags,
+    task_detail,
+    timeblocks,
+    views,
+)
 
 # Named routes referenced by base.html nav. Real implementations land in
 # their own epics (see docs/task-breakdown.md); until then each renders
@@ -28,6 +42,7 @@ urlpatterns = [
     path("week/", lists.week_view, name="week"),
     path("month/", lists.month_view, name="month"),
     path("tasks/", lists.tasks_view, name="tasks"),
+    path("tasks/<int:pk>/", task_detail.task_detail, name="task_detail"),
     path("projects/", projects.projects_view, name="projects"),
     path("projects/<int:pk>/", projects.project_detail, name="project_detail"),
     path("projects/<int:pk>/subtasks/", projects.project_add_subtask, name="project_add_subtask"),
@@ -79,6 +94,10 @@ urlpatterns = [
     path("tags/<int:pk>/rename/", tags.tag_rename, name="tag_rename"),
     path("tags/<int:pk>/merge/", tags.tag_merge, name="tag_merge"),
     path("tags/<int:pk>/delete/", tags.tag_delete, name="tag_delete"),
+    path("areas/", areas.areas_view, name="areas"),
+    path("areas/create/", areas.area_create, name="area_create"),
+    path("areas/<int:pk>/edit/", areas.area_edit, name="area_edit"),
+    path("areas/<int:pk>/delete/", areas.area_delete, name="area_delete"),
     path("review/", reviews.review_dashboard, name="review_dashboard"),
     path("review/", reviews.review_dashboard, name="review"),
     path("review/config/<str:cadence>/save/", reviews.review_config_save, name="review_config_save"),

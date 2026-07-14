@@ -1,0 +1,63 @@
+{% comment %}
+Shared by project_detail.html and task_detail.html - blocking calendar time
+works for any Task, not just projects. Context:
+  task            - a Task instance (project or plain task)
+  blocks          - that task's TimeBlocks, ordered by start
+  blocks_json     - core.timeblocks.blocks_json(blocks, task.title) output
+  gcal_connected  - bool
+
+Caller's own {% block extra_head %} must load FullCalendar + calendar.css
+(see project_detail.html/task_detail.html) - not done here since this is an
+include, not a page. The actual init JS is static/js/calendar-time-panel.js,
+loaded once globally from base.html - deliberately NOT an inline <script>
+here (see that file's own comment for why: an inline script re-executing on
+every boosted swap stacked stale document-level listeners and could freeze
+the calendar showing outdated events indefinitely).
+{% endcomment %}
+<div class="mb-6">
+  <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Calendar time</h2>
+  {% if not gcal_connected %}
+    <p class="text-ink-soft text-xs mb-2">Not synced to Google Calendar - blocks stay local-only until you <a href="{% url 'settings' %}" class="text-water hover:underline">connect it</a>.</p>
+  {% endif %}
+  <div class="space-y-1 mb-3">
+    {% for block in blocks %}
+      <div class="flex items-center justify-between text-sm py-1 font-mono">
+        <span class="{% if block.status == 'missed' %}text-red{% elif block.status == 'completed' %}text-ink-soft{% endif %}">
+          {{ block.start|date:"D d M H:i" }}–{{ block.end|date:"H:i" }}
+          {% if block.status == 'missed' %} · missed{% elif block.status == 'completed' %} · done{% endif %}
+        </span>
+        {% if block.status == 'scheduled' %}
+          <form method="post" action="{% url 'timeblock_delete' block.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-red text-xs hover:underline">Remove</button>
+          </form>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="text-ink-soft text-sm">No blocks scheduled.</p>
+    {% endfor %}
+  </div>
+
+  <p class="text-ink-soft text-xs mb-1">Drag a slot to add a block:</p>
+  {% comment %}
+  data-events, not inline-script-embedded JSON: an HTML attribute needs
+  Django's default auto-escaping (no |safe) so its own `"` characters go
+  through &quot; and get decoded back by the HTML parser before JS reads
+  them - the exact fix already applied to field_tagged.html's tagTypeahead
+  JSON earlier. calendar-time-panel.js re-reads this fresh on every
+  htmx:load, so there is no per-visit closure to ever go stale.
+  {% endcomment %}
+  <div id="fc-mini-calendar" class="mb-3" data-events="{{ blocks_json }}"></div>
+
+  <details>
+    <summary class="text-xs text-ink-soft cursor-pointer hover:text-water">Enter exact times instead</summary>
+    <form id="add-block-form" method="post" action="{% url 'timeblock_create' task.id %}" class="flex items-center gap-2 flex-wrap mt-2">
+      {% csrf_token %}
+      <input type="datetime-local" name="start" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+      <span class="text-ink-soft text-xs">to</span>
+      <input type="datetime-local" name="end" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+      <button type="submit" class="btn-secondary h-9 px-3 text-sm">Add block</button>
+    </form>
+  </details>
+  <p class="text-ink-soft text-xs mt-2">Full week view with every task's blocks is on the <a href="{% url 'calendar_page' %}" class="text-water hover:underline">Calendar page</a>.</p>
+</div>

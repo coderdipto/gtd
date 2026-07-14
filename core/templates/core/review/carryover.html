@@ -15,15 +15,15 @@
     </form>
     <form method="post" action="{% url 'review_carryover_resolve' task.id 'demote' %}">
       {% csrf_token %}
-      <button type="submit" data-wizard-key="2" class="w-full h-11 rounded-md border border-line text-sm hover:border-water">2 · Demote to Anytime</button>
+      <button type="submit" data-wizard-key="2" class="btn-secondary w-full h-11 text-sm">2 · Demote to Anytime</button>
     </form>
     <form method="post" action="{% url 'review_carryover_resolve' task.id 'someday' %}">
       {% csrf_token %}
-      <button type="submit" data-wizard-key="3" class="w-full h-11 rounded-md border border-line text-sm hover:border-water">3 · Someday</button>
+      <button type="submit" data-wizard-key="3" class="btn-secondary w-full h-11 text-sm">3 · Someday</button>
     </form>
     <form method="post" action="{% url 'review_carryover_resolve' task.id 'trash' %}">
       {% csrf_token %}
-      <button type="submit" data-wizard-key="4" class="w-full h-11 rounded-md border border-line text-red text-sm hover:border-red">4 · Trash</button>
+      <button type="submit" data-wizard-key="4" class="btn-secondary-danger text-red w-full h-11 text-sm">4 · Trash</button>
     </form>
   </div>
 {% else %}

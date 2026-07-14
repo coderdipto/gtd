@@ -49,14 +49,19 @@
       </p>
       <form method="post" action="{% url 'google_disconnect' %}" hx-confirm="Disconnect Google Calendar? Time-blocks stay local-only afterward.">
         {% csrf_token %}
-        <button type="submit" class="h-9 px-3 rounded-md border border-line text-sm hover:border-red hover:text-red focus-visible:ring-2 ring-water focus:outline-none">Disconnect Google</button>
+        <button type="submit" class="btn-secondary-danger h-9 px-3 text-sm">Disconnect Google</button>
       </form>
     {% else %}
       <p class="text-sm mb-3">
         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono bg-line text-ink-soft">Not connected</span>
       </p>
       {% if google_configured %}
-        <a href="{% url 'google_connect' %}"
+        {% comment %}
+        hx-boost="false": body's global hx-boost would AJAX-intercept this click; google_connect redirects
+        to accounts.google.com, and htmx's XHR follow-redirect gets CORS-blocked there (Google's OAuth
+        endpoint only accepts a real top-level navigation). Needs an actual browser navigation.
+        {% endcomment %}
+        <a href="{% url 'google_connect' %}" hx-boost="false"
            class="h-9 px-3 inline-flex items-center rounded-md bg-water text-white text-sm focus-visible:ring-2 ring-water focus:outline-none">Connect Google</a>
       {% else %}
         <p class="text-ink-soft text-xs">Set <code class="font-mono">GOOGLE_CLIENT_ID</code>/<code class="font-mono">GOOGLE_CLIENT_SECRET</code>/<code class="font-mono">FERNET_KEY</code> in <code class="font-mono">.env</code> first (see <code class="font-mono">.env.example</code>).</p>

@@ -49,7 +49,7 @@
             <button type="button"
                     hx-post="{% url 'task_set_horizon' task.id 'today' %}"
                     hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML"
-                    class="shrink-0 ml-2 h-8 px-3 rounded-md border border-line text-xs hover:border-water hover:text-water focus-visible:ring-2 ring-water focus:outline-none">
+                    class="btn-secondary shrink-0 ml-2 h-8 px-3 text-xs">
               → Today
             </button>
           </div>

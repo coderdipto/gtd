@@ -9,16 +9,16 @@
     </form>
     <form hx-post="{% url 'review_eisenhower_drop' project.id 'q3' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML">
       <input type="hidden" name="action" value="someday">
-      <button type="submit" class="w-full h-8 rounded-md border border-line text-xs">Project → Someday</button>
+      <button type="submit" class="btn-secondary w-full h-8 text-xs">Project → Someday</button>
     </form>
   {% else %}
     <form hx-post="{% url 'review_eisenhower_drop' project.id 'q4' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML" class="mb-1">
       <input type="hidden" name="action" value="someday">
-      <button type="submit" class="w-full h-8 rounded-md border border-line text-xs">Someday</button>
+      <button type="submit" class="btn-secondary w-full h-8 text-xs">Someday</button>
     </form>
     <form hx-post="{% url 'review_eisenhower_drop' project.id 'q4' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML">
       <input type="hidden" name="action" value="trash">
-      <button type="submit" class="w-full h-8 rounded-md text-red border border-red text-xs">Trash</button>
+      <button type="submit" class="btn-secondary-danger border-red text-red w-full h-8 text-xs">Trash</button>
     </form>
   {% endif %}
 </div>

@@ -2,8 +2,15 @@
 Same as field.html but for a free-text field that accepts inline @context/#tag
 tokens (core/tagging.py) - adds the Alpine typeahead dropdown of existing tag
 names. `all_tags` (list of {name, is_context}) must be in context.
+
+Deliberately NOT `{{ all_tags|safe }}`: this JSON sits inside a
+double-quoted HTML attribute, so its own `"` characters must go through
+Django's default auto-escaping (-> `&quot;`, decoded back to `"` by the
+HTML parser before Alpine reads it) or the attribute value truncates at
+the first tag's opening quote - breaks silently with zero tags in the DB,
+only visible once a real Tag exists.
 {% endcomment %}
-<div class="relative" x-data="tagTypeahead({{ all_tags|safe }})">
+<div class="relative" x-data="tagTypeahead({{ all_tags }})">
   <label class="block text-xs text-ink-soft mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
   {{ field }}
   <div x-show="open" x-cloak

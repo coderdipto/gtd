@@ -38,7 +38,7 @@
             </a>
           {% endif %}
           <button type="button" @click="editing = editing === '{{ cadence }}' ? null : '{{ cadence }}'"
-                  class="h-9 px-3 rounded-md border border-line text-sm hover:border-water">Schedule…</button>
+                  class="btn-secondary h-9 px-3 text-sm">Schedule…</button>
           {% if configs|get_item:cadence %}
             <form method="post" action="{% url 'review_config_delete' cadence %}">
               {% csrf_token %}

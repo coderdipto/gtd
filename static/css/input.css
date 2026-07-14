@@ -4,33 +4,27 @@
 
 @layer base {
   @font-face {
-    font-family: "Bricolage Grotesque";
-    src: url("/static/fonts/BricolageGrotesque-SemiBold.woff2") format("woff2");
-    font-weight: 600;
-    font-display: swap;
-  }
-  @font-face {
-    font-family: "Bricolage Grotesque";
-    src: url("/static/fonts/BricolageGrotesque-Bold.woff2") format("woff2");
-    font-weight: 700;
-    font-display: swap;
-  }
-  @font-face {
-    font-family: "Inter";
-    src: url("/static/fonts/Inter-Regular.woff2") format("woff2");
+    font-family: "Plus Jakarta Sans";
+    src: url("/static/fonts/PlusJakartaSans-Regular.woff2") format("woff2");
     font-weight: 400;
     font-display: swap;
   }
   @font-face {
-    font-family: "Inter";
-    src: url("/static/fonts/Inter-Medium.woff2") format("woff2");
+    font-family: "Plus Jakarta Sans";
+    src: url("/static/fonts/PlusJakartaSans-Medium.woff2") format("woff2");
     font-weight: 500;
     font-display: swap;
   }
   @font-face {
-    font-family: "Inter";
-    src: url("/static/fonts/Inter-SemiBold.woff2") format("woff2");
+    font-family: "Plus Jakarta Sans";
+    src: url("/static/fonts/PlusJakartaSans-SemiBold.woff2") format("woff2");
     font-weight: 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Plus Jakarta Sans";
+    src: url("/static/fonts/PlusJakartaSans-Bold.woff2") format("woff2");
+    font-weight: 700;
     font-display: swap;
   }
   @font-face {
@@ -77,4 +71,36 @@
   .prose-note pre { @apply font-mono text-xs bg-line rounded-md p-3 overflow-x-auto mb-3; }
   .prose-note pre code { @apply bg-transparent p-0; }
   .prose-note blockquote { @apply border-l-2 border-line pl-3 text-ink-soft italic mb-3; }
+}
+
+@layer components {
+  /* Shared "secondary" button treatment (docs/design.md §4 Buttons:
+     "secondary = border-line surface") - previously copy-pasted as raw
+     utility classes across ~40 buttons in ~25 templates, with no shared
+     class at all. Extracted so a visual tweak lands everywhere at once
+     instead of 40 separate edits.
+     "Looks too plain/flat" fix: font-medium gives the label real presence
+     at rest (visible in a screenshot, not just on interaction); a
+     hover:bg-water-soft wash reuses the exact hover language already
+     established for sidebar nav links (templates/base.html) rather than
+     inventing a new interaction; a smooth color transition replaces the
+     instant snap. Deliberately no background fill at rest and no shadow:
+     these buttons appear on every kind of ambient background across the
+     app (bare page, and inside bg-surface cards like settings.html's
+     sections) where a fixed bg-surface fill would sometimes blend into its
+     own parent instead of standing out, and design.md reserves shadow-sm
+     for "floating things (modals, dropdowns, drag ghost)", not buttons.
+     Callers still add their own sizing (h-8/h-9/px-3/text-sm, etc.) and
+     layout (flex/w-full/shrink-0/justify-between) - those vary too much
+     per button to extract. */
+  .btn-secondary {
+    @apply rounded-md border border-line font-medium transition-colors duration-150
+      hover:border-water hover:text-water hover:bg-water-soft
+      focus-visible:ring-2 ring-water focus:outline-none;
+  }
+  .btn-secondary-danger {
+    @apply rounded-md border border-line font-medium transition-colors duration-150
+      hover:border-red hover:text-red hover:bg-red-bg
+      focus-visible:ring-2 ring-water focus:outline-none;
+  }
 }

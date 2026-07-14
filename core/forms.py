@@ -1,6 +1,7 @@
 from django import forms
+from django.contrib.auth.forms import AuthenticationForm
 
-from .models import InboxItem, Note, Task
+from .models import Area, InboxItem, Note, Task
 
 TEXT_INPUT_CLASS = (
     "w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none "
@@ -8,6 +9,13 @@ TEXT_INPUT_CLASS = (
 )
 TEXTAREA_CLASS = TEXT_INPUT_CLASS
 SELECT_CLASS = TEXT_INPUT_CLASS
+
+
+class StyledAuthenticationForm(AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].widget.attrs.update({"class": TEXT_INPUT_CLASS, "autofocus": True})
+        self.fields["password"].widget.attrs.update({"class": TEXT_INPUT_CLASS})
 
 # Merged into a Textarea's attrs to wire it up to the Alpine tagTypeahead
 # component (static/js/tag-typeahead.js) via core/partials/field_tagged.html.
@@ -30,8 +38,8 @@ class InboxItemForm(forms.ModelForm):
                     "autocomplete": "off",
                     "x-ref": "title",
                     "class": (
-                        "w-full text-xl bg-transparent border-0 border-b border-line "
-                        "focus:border-water focus:outline-none focus-visible:ring-2 ring-water py-2"
+                        "w-full text-xl bg-transparent border-0 rounded-md px-3 py-2.5 "
+                        "focus:outline-none focus-visible:ring-2 ring-water"
                     ),
                 }
             ),
@@ -40,11 +48,23 @@ class InboxItemForm(forms.ModelForm):
                     "rows": 2,
                     "placeholder": "Details (optional)",
                     "class": (
-                        "w-full text-sm bg-transparent border border-line rounded-md p-2 "
+                        "w-full text-sm bg-transparent border border-line rounded-md p-3 "
                         "focus:border-water focus:outline-none focus-visible:ring-2 ring-water"
                     ),
                 }
             ),
+        }
+
+
+class AreaForm(forms.ModelForm):
+    class Meta:
+        model = Area
+        fields = ["name", "description"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={"class": TEXT_INPUT_CLASS, "autofocus": True, "placeholder": "e.g. Health, Family, Career"}
+            ),
+            "description": forms.Textarea(attrs={"class": TEXTAREA_CLASS, "rows": 2, "placeholder": "Optional"}),
         }
 
 

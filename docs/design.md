@@ -24,19 +24,23 @@ Define once in `tailwind.config.js` under `theme.extend`; never use raw hex in t
 
 ### Color
 
+Recolored 2026-07-14, taking design cues from cocoindex.io's warm/editorial palette (parchment background, deep maroon ink, terracotta accent) — token *names* are unchanged from v1 so every existing `bg-water`/`text-ink`/etc. usage across templates cascaded automatically; only the hex values moved.
+
 | Token | Hex | Tailwind name | Use |
 |---|---|---|---|
-| `paper` | `#FAFAF8` | `bg-paper` | App background |
-| `surface` | `#FFFFFF` | `bg-surface` | Cards, rows, modals |
-| `ink` | `#1F2937` | `text-ink` | Primary text |
-| `ink-soft` | `#6B7280` | `text-ink-soft` | Secondary text, helper copy |
-| `line` | `#E5E7EB` | `border-line` | All borders/dividers |
-| `water` | `#0F766E` | accent | Primary actions, active states, links, Today curation |
-| `water-soft` | `#CCFBF1` | | Accent backgrounds (chips, selected) |
+| `paper` | `#FAF3E5` | `bg-paper` | App background |
+| `surface` | `#FFFCF6` | `bg-surface` | Cards, rows, modals |
+| `ink` | `#2A121B` | `text-ink` | Primary text |
+| `ink-soft` | `#7C6259` | `text-ink-soft` | Secondary text, helper copy |
+| `line` | `#E8DDD0` | `border-line` | All borders/dividers |
+| `water` | `#BE5133` | accent | Primary actions, active states, links, Today curation |
+| `water-soft` | `#F8E3D6` | | Accent backgrounds (chips, selected) |
 | `amber` | `#B45309` / bg `#FEF3C7` | | Warnings: carried-over, stalled-?, follow-up due |
 | `red` | `#B91C1C` / bg `#FEE2E2` | | Overdue, missed blocks, destructive |
 | `violet` | `#6D28D9` / bg `#EDE9FE` | | Q2 chip only. Nothing else is violet |
 | `star` | `#CA8A04` | | Big-3 star only |
+
+`water` keeps its historical token name post-rebrand even though the color itself is no longer teal — renaming the key would mean touching every template instead of just `tailwind.config.js`. Don't be misled by the name when picking a new hex here later.
 
 Dark mode: **out of scope v1.** Do not add `dark:` variants.
 
@@ -44,12 +48,12 @@ Calendar colors (FullCalendar): GTD blocks `water` at 90% with white text; compl
 
 ### Typography
 
-Self-hosted woff2 in `static/fonts/` (no Google Fonts CDN — single-server, offline-friendly).
+Self-hosted woff2 in `static/fonts/` (no Google Fonts CDN — single-server, offline-friendly). As of the 2026-07-14 rebrand, display and body share one face (Plus Jakarta Sans, distinguished by weight/size scale only) rather than pairing two different typefaces.
 
 | Role | Face | Use |
 |---|---|---|
-| Display | **Bricolage Grotesque** (600/700) | Page titles, review phase headings, big stat numbers, "Inbox zero" moment |
-| Body | **Inter** (400/500/600) | Everything else |
+| Display | **Plus Jakarta Sans** (600/700) | Page titles, review phase headings, big stat numbers, "Inbox zero" moment |
+| Body | **Plus Jakarta Sans** (400/500/600) | Everything else |
 | Mono | **JetBrains Mono** (400/500) | Dates, times, counters, streaks, `@context`/`#tag` tokens inside text |
 
 Scale (rem): page title 1.5 / section 1.125 / body 0.9375 / meta & badges 0.75. Line-height 1.5 body, 1.2 display. Never bold whole sentences; weight 600 max for emphasis words.

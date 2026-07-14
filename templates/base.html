@@ -10,6 +10,7 @@
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/sortable.min.js' %}" defer></script>
   <script src="{% static 'js/sortable-lists.js' %}" defer></script>
+  <script src="{% static 'js/calendar-time-panel.js' %}" defer></script>
   <script src="{% static 'js/tag-typeahead.js' %}" defer></script>
   <script src="{% static 'js/gtd-tips.js' %}" defer></script>
   <script src="{% static 'js/alpine.min.js' %}" defer></script>
@@ -34,7 +35,7 @@
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Capture</p>
           <a href="{% url 'inbox' %}" class="flex items-center justify-between px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">
             <span>Inbox</span>
-            <span class="font-mono text-xs text-ink-soft">{{ inbox_count|default:"0" }}</span>
+            {% include "core/partials/sidebar_inbox_count.html" %}
           </a>
         </div>
         <div>
@@ -43,6 +44,7 @@
           <a href="{% url 'week' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">This Week</a>
           <a href="{% url 'month' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">This Month</a>
           <a href="{% url 'tasks' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Next Actions</a>
+          <a href="{% url 'calendar_page' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Calendar</a>
         </div>
         <div>
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Organize</p>
@@ -52,6 +54,7 @@
           <a href="{% url 'notes' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Notes</a>
           <a href="{% url 'recurring' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Recurring</a>
           <a href="{% url 'tags' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Tags</a>
+          <a href="{% url 'areas' %}" class="block px-2 py-2 rounded-md text-sm hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">Areas</a>
         </div>
         <div>
           <p class="px-2 text-xs uppercase tracking-wide text-ink-soft mb-1">Reflect</p>
@@ -77,13 +80,7 @@
                 aria-label="Quick capture">
           {% include "icons/plus.svg" %}
         </button>
-        <div class="font-mono text-xs" id="trust-strip">
-          <span class="{% if inbox_count > 20 %}text-amber{% else %}text-ink-soft{% endif %}">inbox {{ inbox_count }}</span>
-          &middot;
-          <span class="{% if review_age_days == None %}text-ink-soft{% elif review_age_days > 10 %}text-red{% elif review_age_days > 7 %}text-amber{% else %}text-ink-soft{% endif %}">
-            review {% if review_age_days == None %}never{% else %}{{ review_age_days }}d ago{% endif %}
-          </span>
-        </div>
+        {% include "core/partials/trust_strip.html" %}
       </header>
 
       <main class="flex-1 overflow-y-auto pb-20 lg:pb-0">

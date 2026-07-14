@@ -39,6 +39,27 @@ def parse_rrule(rrule_str):
     }
 
 
+_FREQ_LABELS = {"DAILY": "Daily", "WEEKLY": "Weekly", "MONTHLY": "Monthly", "YEARLY": "Yearly"}
+_FREQ_UNITS = {"DAILY": "day", "WEEKLY": "week", "MONTHLY": "month", "YEARLY": "year"}
+
+
+def humanize_rrule(rrule_str):
+    """'FREQ=WEEKLY;BYDAY=MO' -> 'Weekly on Mon' - the raw RFC5545 string is
+    exactly correct but not something a user should have to read (recurring.html
+    and recurring_detail.html were showing it verbatim). Falls back to the raw
+    string for anything build_rrule() wouldn't itself produce, rather than
+    raising, since a template filter shouldn't 500 a page over a display nicety."""
+    try:
+        fields = parse_rrule(rrule_str)
+        freq, interval, byday = fields["freq"], fields["interval"], fields["byday"]
+        label = f"Every {interval} {_FREQ_UNITS[freq]}s" if interval > 1 else _FREQ_LABELS[freq]
+    except KeyError:
+        return rrule_str
+    if freq == "WEEKLY" and byday:
+        label += " on " + ", ".join(WEEKDAY_LABELS.get(d, d) for d in byday)
+    return label
+
+
 def _next_occurrence_date(template, today):
     """First date on/after today matching the template's RRULE - used as the
     seed occurrence for its one recurring GCal event (solution-plan.md Step 7:

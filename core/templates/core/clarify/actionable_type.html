@@ -12,17 +12,17 @@
     </button>
   </form>
   <a href="{% url 'clarify_single' item.id %}" data-wizard-key="2"
-     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+     class="btn-secondary flex items-center justify-between h-12 px-4">
     <span class="text-sm">Single action</span>
     <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">2</span>
   </a>
   <a href="{% url 'clarify_project' item.id %}" data-wizard-key="3"
-     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+     class="btn-secondary flex items-center justify-between h-12 px-4">
     <span class="text-sm">Project</span>
     <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">3</span>
   </a>
   <a href="{% url 'clarify_delegate' item.id %}" data-wizard-key="4"
-     class="flex items-center justify-between h-12 px-4 rounded-md border border-line hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+     class="btn-secondary flex items-center justify-between h-12 px-4">
     <span class="text-sm">Delegate &mdash; Waiting For</span>
     <span class="font-mono text-xs border border-line rounded-md px-2 py-0.5">4</span>
   </a>

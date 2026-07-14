@@ -1,3 +1,4 @@
+import json
 import re
 
 # @word = context, #word = plain tag. Tokens stay in the source text; the
@@ -33,3 +34,15 @@ def sync_tags_from_text(obj, *texts):
     for name, is_context in seen.items():
         tag, _ = Tag.objects.get_or_create(name=name, defaults={"is_context": is_context})
         obj.tags.add(tag)
+
+
+def all_tags_json():
+    # Feeds the Alpine typeahead (static/js/tag-typeahead.js) on free-text
+    # description/body fields - just existing tag names to suggest from, the
+    # actual @/# parsing on save is sync_tags_from_text above, this is UI
+    # sugar only. Shared by every screen using core/partials/field_tagged.html
+    # (clarify wizard, task detail).
+    from .models import Tag
+
+    tags = [{"name": t.name, "is_context": t.is_context} for t in Tag.objects.all()]
+    return json.dumps(tags)

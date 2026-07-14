@@ -1,0 +1,7 @@
+<div class="font-mono text-xs" id="trust-strip"{% if oob %} hx-swap-oob="true"{% endif %}>
+  <span class="{% if inbox_count > 20 %}text-amber{% else %}text-ink-soft{% endif %}">inbox {{ inbox_count }}</span>
+  &middot;
+  <span class="{% if review_age_days == None %}text-ink-soft{% elif review_age_days > 10 %}text-red{% elif review_age_days > 7 %}text-amber{% else %}text-ink-soft{% endif %}">
+    review {% if review_age_days == None %}never{% else %}{{ review_age_days }}d ago{% endif %}
+  </span>
+</div>

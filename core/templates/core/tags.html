@@ -18,13 +18,13 @@
 
         <form method="post" action="{% url 'tag_toggle_context' tag.id %}" class="shrink-0">
           {% csrf_token %}
-          <button type="submit" class="h-7 px-2 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+          <button type="submit" class="btn-secondary h-7 px-2 text-xs">
             {% if tag.is_context %}@ context{% else %}# tag{% endif %} · toggle
           </button>
         </form>
 
-        <button type="button" @click="renaming = !renaming" class="h-7 px-2 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none shrink-0">Rename</button>
-        <button type="button" @click="merging = !merging" class="h-7 px-2 rounded-md border border-line text-xs hover:border-water focus-visible:ring-2 ring-water focus:outline-none shrink-0">Merge into…</button>
+        <button type="button" @click="renaming = !renaming" class="btn-secondary h-7 px-2 text-xs shrink-0">Rename</button>
+        <button type="button" @click="merging = !merging" class="btn-secondary h-7 px-2 text-xs shrink-0">Merge into…</button>
 
         <form method="post" action="{% url 'tag_delete' tag.id %}"
               hx-confirm="Delete #{{ tag.name }}? This removes it from every task and note."

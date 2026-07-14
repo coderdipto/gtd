@@ -24,6 +24,9 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 # Application definition
 
 INSTALLED_APPS = [
+    # Must precede django.contrib.admin: its templates only override the
+    # built-in admin's if Django's app-dirs template loader finds them first.
+    "unfold",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -100,6 +103,31 @@ USE_I18N = True
 
 USE_TZ = True
 
+
+# Django Unfold admin theme (/admin/ only - no effect on the main app,
+# which has its own design system per docs/design.md). Color ramp is a hand
+# extrapolation of the app's own paper/water/ink tokens (tailwind.config.js)
+# so the admin doesn't look like a jarring third palette.
+UNFOLD = {
+    "SITE_TITLE": "GTD Admin",
+    "SITE_HEADER": "GTD",
+    "SITE_SYMBOL": "checklist",
+    "COLORS": {
+        "primary": {
+            "50": "253 246 240",
+            "100": "250 231 219",
+            "200": "244 208 189",
+            "300": "235 174 143",
+            "400": "219 128 91",
+            "500": "190 81 51",
+            "600": "163 66 41",
+            "700": "130 53 33",
+            "800": "97 40 25",
+            "900": "68 29 19",
+            "950": "42 18 27",
+        },
+    },
+}
 
 # Static files (CSS, JavaScript, Images)
 
