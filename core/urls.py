@@ -2,7 +2,7 @@ from functools import partial
 
 from django.urls import path
 
-from . import clarify, google_calendar, lists, notes, projects, recurring, reviews, tags, timeblocks, views
+from . import clarify, google_calendar, lists, notes, projects, recurring, reviews, stats, tags, timeblocks, views
 
 # Named routes referenced by base.html nav. Real implementations land in
 # their own epics (see docs/task-breakdown.md); until then each renders
@@ -94,7 +94,7 @@ urlpatterns = [
     path("review/monthly/<str:phase>/", reviews.review_monthly_phase, name="review_monthly_phase"),
     path("review/<str:cadence>/", reviews.review_simple_start, name="review_simple_start"),
     path("review/<str:cadence>/<str:phase>/", reviews.review_simple_phase, name="review_simple_phase"),
-    path("stats/", partial(views.stub, title="Stats"), name="stats"),
+    path("stats/", stats.stats_view, name="stats"),
     path("settings/", views.settings_page, name="settings"),
     path("settings/tokens/", views.capture_token_create, name="capture_token_create"),
     path("settings/tokens/<int:pk>/revoke/", views.capture_token_revoke, name="capture_token_revoke"),

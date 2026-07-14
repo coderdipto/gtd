@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Stats · GTD{% endblock %}
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6 space-y-8">
+  <h1 class="font-display font-bold text-2xl">Stats</h1>
+
+  <section class="grid grid-cols-2 gap-3">
+    <div class="bg-surface border border-line rounded-md p-4 text-center">
+      <p class="font-display font-bold text-2xl">{{ inbox_zero_count }}</p>
+      <p class="font-mono text-xs text-ink-soft mt-1">inbox-zero events</p>
+    </div>
+    <div class="bg-surface border border-line rounded-md p-4 text-center">
+      <p class="font-display font-bold text-2xl">{% if missed_block_rate is not None %}{{ missed_block_rate }}%{% else %}—{% endif %}</p>
+      <p class="font-mono text-xs text-ink-soft mt-1">missed-block rate (4wk)</p>
+    </div>
+    <div class="bg-surface border border-line rounded-md p-4 text-center">
+      <p class="font-display font-bold text-2xl">{{ median_latency_label }}</p>
+      <p class="font-mono text-xs text-ink-soft mt-1">median capture → clarify</p>
+    </div>
+    <div class="bg-surface border border-line rounded-md p-4 text-center">
+      <p class="font-display font-bold text-2xl">{{ two_minute_count }}</p>
+      <p class="font-mono text-xs text-ink-soft mt-1">2-minute-rule count</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Review streaks</h2>
+    <div class="grid grid-cols-2 gap-3">
+      {% for row in review_rows %}
+        <div class="bg-surface border border-line rounded-md p-4">
+          <p class="font-display font-semibold text-sm mb-1">{{ row.cadence }}</p>
+          <p class="font-display font-bold text-xl">{{ row.streak }}</p>
+          <p class="font-mono text-xs text-ink-soft">
+            {% if row.last_completed %}last {{ row.last_completed|timesince }} ago{% else %}never completed{% endif %}
+          </p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Completions per day (30d)</h2>
+    <canvas id="completions-day-chart" height="80"></canvas>
+  </section>
+
+  <section>
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Completions per week (12wk)</h2>
+    <canvas id="completions-week-chart" height="80"></canvas>
+  </section>
+</div>
+<script>
+  document.body.addEventListener("htmx:load", function (evt) {
+    var dayCanvas = document.getElementById("completions-day-chart");
+    var weekCanvas = document.getElementById("completions-week-chart");
+    if (!dayCanvas || !weekCanvas || dayCanvas.dataset.chartInit) return;
+    dayCanvas.dataset.chartInit = "1";
+
+    var perDay = {{ completions_per_day_json|safe }};
+    var perWeek = {{ completions_per_week_json|safe }};
+
+    var WATER = "#0F766E";
+    var commonOptions = {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+    };
+
+    new Chart(dayCanvas, {
+      type: "bar",
+      data: {
+        labels: perDay.map((d) => d.label),
+        datasets: [{ data: perDay.map((d) => d.count), backgroundColor: WATER }],
+      },
+      options: commonOptions,
+    });
+
+    new Chart(weekCanvas, {
+      type: "bar",
+      data: {
+        labels: perWeek.map((d) => d.label),
+        datasets: [{ data: perWeek.map((d) => d.count), backgroundColor: WATER }],
+      },
+      options: commonOptions,
+    });
+  });
+</script>
+{% endblock %}

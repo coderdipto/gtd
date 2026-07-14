@@ -1972,3 +1972,102 @@ class RecurringOverdueCommandTests(TestCase):
     def test_no_overdue_instances_no_notification(self, mock_post):
         call_command("notify_recurring_overdue")
         mock_post.assert_not_called()
+
+
+class StatsAggregateTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        self.today = timezone.localtime().date()
+
+    def test_stats_page_renders_empty(self):
+        response = self.client.get(reverse("stats"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_completions_per_day_counts_by_completion_date(self):
+        def completed_at(days_ago):
+            return timezone.now() - timedelta(days=days_ago)
+
+        Task.objects.create(title="A", completed_at=completed_at(0))
+        Task.objects.create(title="B", completed_at=completed_at(0))
+        Task.objects.create(title="C", completed_at=completed_at(5))
+        response = self.client.get(reverse("stats"))
+        data = json.loads(response.context["completions_per_day_json"])
+        today_label = self.today.strftime("%d %b")
+        five_days_ago_label = (self.today - timedelta(days=5)).strftime("%d %b")
+        by_label = {d["label"]: d["count"] for d in data}
+        self.assertEqual(by_label[today_label], 2)
+        self.assertEqual(by_label[five_days_ago_label], 1)
+        self.assertEqual(len(data), 30)
+
+    def test_completions_per_week_groups_by_monday(self):
+        this_monday = self.today - timedelta(days=self.today.weekday())
+        Task.objects.create(title="A", completed_at=timezone.now())
+        Task.objects.create(title="B", completed_at=timezone.now() - timedelta(weeks=3))
+        response = self.client.get(reverse("stats"))
+        data = json.loads(response.context["completions_per_week_json"])
+        self.assertEqual(len(data), 12)
+        self.assertEqual(data[-1]["label"], this_monday.strftime("%d %b"))
+        self.assertEqual(data[-1]["count"], 1)
+
+    def test_review_streaks_and_last_completed(self):
+        ReviewSession.objects.create(cadence="weekly", completed_at=timezone.now() - timedelta(days=7))
+        ReviewSession.objects.create(cadence="weekly", completed_at=timezone.now())
+        response = self.client.get(reverse("stats"))
+        weekly_row = next(r for r in response.context["review_rows"] if r["cadence"] == "Weekly")
+        self.assertEqual(weekly_row["streak"], 2)
+        self.assertIsNotNone(weekly_row["last_completed"])
+
+    def test_inbox_zero_event_count(self):
+        from core.stats import _inbox_zero_event_count
+
+        now = timezone.now()
+        # created_at is auto_now_add, so the ORM silently forces it to "now"
+        # on .create() regardless of any explicit kwarg - build the rows first,
+        # then overwrite created_at with a direct .update() (which bypasses
+        # auto_now_add's save()-time override) to backdate them.
+        a = InboxItem.objects.create(title="A", processed_at=now - timedelta(hours=2))
+        b = InboxItem.objects.create(title="B", processed_at=now - timedelta(minutes=30))
+        c = InboxItem.objects.create(title="C", processed_at=now - timedelta(minutes=20))
+        # Item A created and processed alone -> inbox goes 1 -> 0 (one zero event).
+        InboxItem.objects.filter(pk=a.pk).update(created_at=now - timedelta(hours=3))
+        # B and C created while A is still open, processed together later ->
+        # inbox goes 0->1->2->1->0 (a second zero event).
+        InboxItem.objects.filter(pk=b.pk).update(created_at=now - timedelta(hours=1, minutes=50))
+        InboxItem.objects.filter(pk=c.pk).update(created_at=now - timedelta(hours=1, minutes=40))
+        self.assertEqual(_inbox_zero_event_count(), 2)
+
+    def test_missed_block_rate_excludes_scheduled(self):
+        task = Task.objects.create(title="A")
+        now = timezone.now()
+        TimeBlock.objects.create(task=task, start=now, end=now + timedelta(hours=1), status=TimeBlock.Status.MISSED)
+        TimeBlock.objects.create(
+            task=task, start=now, end=now + timedelta(hours=1), status=TimeBlock.Status.COMPLETED
+        )
+        TimeBlock.objects.create(
+            task=task, start=now, end=now + timedelta(hours=1), status=TimeBlock.Status.SCHEDULED
+        )
+        response = self.client.get(reverse("stats"))
+        self.assertEqual(response.context["missed_block_rate"], 50)
+
+    def test_missed_block_rate_none_when_no_data(self):
+        response = self.client.get(reverse("stats"))
+        self.assertIsNone(response.context["missed_block_rate"])
+
+    def test_median_latency_label(self):
+        now = timezone.now()
+        InboxItem.objects.create(title="A", processed_at=now)
+        InboxItem.objects.filter(title="A").update(created_at=now - timedelta(minutes=10))
+        response = self.client.get(reverse("stats"))
+        self.assertEqual(response.context["median_latency_label"], "10m")
+
+    def test_median_latency_dash_when_nothing_processed(self):
+        response = self.client.get(reverse("stats"))
+        self.assertEqual(response.context["median_latency_label"], "—")
+
+    def test_two_minute_rule_count(self):
+        InboxItem.objects.create(title="A", done_directly=True, processed_at=timezone.now())
+        InboxItem.objects.create(title="B", done_directly=True, processed_at=timezone.now())
+        InboxItem.objects.create(title="C", done_directly=False)
+        response = self.client.get(reverse("stats"))
+        self.assertEqual(response.context["two_minute_count"], 2)

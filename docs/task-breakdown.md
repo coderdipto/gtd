@@ -186,8 +186,11 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 11 — Stats (M4)
 
-- [ ] `/stats` (Chart.js via CDN, single `water` accent, no multicolor): completions/day (30d) and /week (12wk), review streak + last-completed per cadence, inbox-zero event count, missed-block rate (4wk), median capture→clarify latency, 2-minute-rule count. All live aggregate queries, no denormalized tables.
-- [ ] **Test:** each aggregate against fixture data.
+- [x] `/stats` (`core/stats.py`, Chart.js via CDN loaded only on this page via `{% block extra_head %}` — same one-page-only pattern as FullCalendar in Epic 8 — single `water` accent, no multicolor): completions/day (30d) and /week (12wk) as bar charts; review streak + last-completed per cadence (reusing the same "count of completed sessions" streak definition from Epic 9); inbox-zero event count; missed-block rate (4wk); median capture→clarify latency; 2-minute-rule count. All live aggregate queries, no denormalized tables.
+  - Inbox-zero event count has no dedicated event log to query, so it's reconstructed from every `InboxItem`'s `created_at`/`processed_at` as a simulated +1/-1 event stream sorted chronologically, counting every transition from a positive running count down to exactly zero — still a live query (reads existing rows, no new table), just computed in Python rather than SQL.
+  - Missed-block rate excludes `SCHEDULED` blocks from both numerator and denominator (they're neither missed nor completed yet, so including them would understate the rate).
+  - Median latency uses Python's `statistics.median()` over `(processed_at - created_at)` in seconds rather than a Postgres `percentile_cont` — simpler, and fine at this app's single-user scale.
+- [x] **Test:** 12 new tests, 202/202 passing — each aggregate checked against known fixture data (completions bucketed by day/by ISO week-Monday, review streak count + last-completed, inbox-zero transitions via a hand-traced create/process timeline, missed-block rate excluding scheduled blocks, median latency incl. the "nothing processed yet" dash case, 2-minute-rule count).
 
 ## Epic 12 — Deployment & ops (M4)
 
