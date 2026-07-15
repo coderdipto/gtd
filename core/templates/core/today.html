@@ -23,13 +23,7 @@
     </div>
   {% endif %}
 
-  <div id="today-curated" class="divide-y divide-line border-t border-b border-line mb-6">
-    {% for task in curated %}
-      {% include "components/task_row.html" with task=task meta=meta|get_item:task.id menu_moves=menu_moves|get_item:task.id %}
-    {% empty %}
-      {% include "components/empty_state.html" with icon="icons/circle-check.svg" heading="Nothing curated for today." body="Pull something from Anytime below, or capture what's on your mind." %}
-    {% endfor %}
-  </div>
+  {% include "core/partials/today_curated.html" with curated=curated meta=meta menu_moves=menu_moves %}
 
   <div>
     <button type="button" @click="anytimeOpen = !anytimeOpen"

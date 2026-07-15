@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import OuterRef, Q, Subquery
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -83,15 +84,12 @@ def _context_chips(request, param="context"):
 # --- Today / Week / Month -----------------------------------------------
 
 
-@login_required
-def today_view(request):
-    today = _today_local()
-
+def _today_curated_qs(today):
     base = _engage_base_qs()
     block_start_sq = (
         TimeBlock.objects.filter(task=OuterRef("pk"), start__date=today).order_by("start").values("start")[:1]
     )
-    curated = (
+    return (
         base.filter(
             Q(horizon=Task.Horizon.TODAY)
             | Q(blocks__start__date=today)
@@ -102,7 +100,14 @@ def today_view(request):
         .annotate(today_block_start=Subquery(block_start_sq))
         .order_by("-big3", "today_block_start", "sort_order", "id")
     )
-    curated = list(curated)
+
+
+@login_required
+def today_view(request):
+    today = _today_local()
+
+    base = _engage_base_qs()
+    curated = list(_today_curated_qs(today))
 
     context_filter = request.GET.get("context")
     anytime_qs = base.filter(horizon=Task.Horizon.ANYTIME).exclude(id__in=[t.id for t in curated])
@@ -485,7 +490,26 @@ def task_set_horizon(request, pk, horizon):
     task.horizon = horizon
     task.save(update_fields=["horizon"])
     if horizon == Task.Horizon.TODAY:
-        return render(request, "core/partials/task_row_to_today.html", {"task": task})
+        # The fade-and-remove row (target swap) handles the Anytime side of
+        # the move; the Today page's #today-curated list is a separate,
+        # already-rendered block on the same page that this POST never
+        # otherwise touches - without an OOB refresh here, the moved task
+        # only appears in Today after a full page reload.
+        today = _today_local()
+        curated = list(_today_curated_qs(today))
+        html = render_to_string(
+            "core/partials/task_row_to_today.html", {"task": task}, request=request
+        ) + render_to_string(
+            "core/partials/today_curated.html",
+            {
+                "curated": curated,
+                "meta": {t.id: _task_meta(t, today) for t in curated},
+                "menu_moves": {t.id: _menu_moves(t) for t in curated},
+                "oob": True,
+            },
+            request=request,
+        )
+        return HttpResponse(html)
     return HttpResponse("")
 
 
