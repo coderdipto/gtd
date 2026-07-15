@@ -83,34 +83,37 @@
         {% include "core/partials/trust_strip.html" %}
       </header>
 
-      <main class="flex-1 overflow-y-auto pb-20 lg:pb-0">
+      <main class="flex-1 overflow-y-auto">
         {% block content %}{% endblock %}
       </main>
+
+      <!-- Mobile bottom tab bar: a real shrink-0 flex item (not `fixed`) so it
+           claims its own space and `main`'s flex-1 height shrinks to fit above
+           it - a `fixed` nav sits outside the flow and just paints over
+           whatever scrollable content happens to be there instead. -->
+      <nav class="lg:hidden shrink-0 bg-surface border-t border-line flex items-center justify-around h-16 px-2">
+        <a href="{% url 'inbox' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
+          {% include "icons/inbox.svg" %}
+          <span>Inbox</span>
+        </a>
+        <a href="{% url 'today' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
+          {% include "icons/circle-check.svg" %}
+          <span>Today</span>
+        </a>
+        <a href="{% url 'capture' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-water text-white -mt-6 shadow-sm focus-visible:ring-2 ring-water focus:outline-none">
+          {% include "icons/plus.svg" %}
+        </a>
+        <a href="{% url 'calendar_page' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
+          {% include "icons/calendar.svg" %}
+          <span>Calendar</span>
+        </a>
+        <a href="{% url 'review' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
+          {% include "icons/calendar-check.svg" %}
+          <span>Review</span>
+        </a>
+      </nav>
     </div>
   </div>
-
-  <!-- Mobile bottom tab bar -->
-  <nav class="lg:hidden fixed bottom-0 inset-x-0 bg-surface border-t border-line flex items-center justify-around h-16 px-2">
-    <a href="{% url 'inbox' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
-      {% include "icons/inbox.svg" %}
-      <span>Inbox</span>
-    </a>
-    <a href="{% url 'today' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
-      {% include "icons/circle-check.svg" %}
-      <span>Today</span>
-    </a>
-    <a href="{% url 'capture' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-water text-white -mt-6 shadow-sm focus-visible:ring-2 ring-water focus:outline-none">
-      {% include "icons/plus.svg" %}
-    </a>
-    <a href="{% url 'calendar_page' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
-      {% include "icons/calendar.svg" %}
-      <span>Calendar</span>
-    </a>
-    <a href="{% url 'review' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus-visible:ring-2 ring-water focus:outline-none">
-      {% include "icons/calendar-check.svg" %}
-      <span>Review</span>
-    </a>
-  </nav>
 
   <div id="modal-root"></div>
 
