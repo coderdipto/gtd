@@ -175,6 +175,7 @@ def tasks_view(request):
     horizon_filter = request.GET.get("horizon")
     area_filter = request.GET.get("area")
     next_only = request.GET.get("next_only") == "1"
+    show_done = request.GET.get("show_done") == "1"
 
     if context_filter:
         qs = qs.filter(tags__name=context_filter, tags__is_context=True)
@@ -209,6 +210,20 @@ def tasks_view(request):
         tasks = [t for t in all_tasks if not t.parent_id or marker_for(t)]
     else:
         tasks = all_tasks
+
+    done_tasks = []
+    done_meta = {}
+    done_actions = {}
+    if show_done:
+        done_tasks = list(
+            Task.objects.filter(list=Task.List.NEXT, is_project=False, completed_at__isnull=False)
+            .select_related("parent", "area")
+            .order_by("-completed_at")[:50]
+        )
+        done_meta = {t.id: f"done {timezone.localtime(t.completed_at):%d %b}" for t in done_tasks}
+        done_actions = {
+            t.id: [{"label": "Reopen", "url": reverse("task_reopen", args=[t.id])}] for t in done_tasks
+        }
 
     chips = _context_chips(request)
     chips += [
@@ -246,8 +261,16 @@ def tasks_view(request):
             "url": _toggle_url(request, "next_only", "1"),
         }
     )
+    chips.append(
+        {
+            "label": "show done",
+            "variant": "plain",
+            "active": show_done,
+            "url": _toggle_url(request, "show_done", "1"),
+        }
+    )
     any_active = any(
-        [context_filter, tag_filter, horizon_filter, area_filter, next_only]
+        [context_filter, tag_filter, horizon_filter, area_filter, next_only, show_done]
     )
 
     return render(
@@ -259,6 +282,10 @@ def tasks_view(request):
             "meta": {t.id: _task_meta(t, today) for t in tasks},
             "chips": chips,
             "clear_url": request.path if any_active else None,
+            "show_done": show_done,
+            "done_tasks": done_tasks,
+            "done_meta": done_meta,
+            "done_actions": done_actions,
         },
     )
 
@@ -413,7 +440,7 @@ def task_reopen(request, pk):
     task = get_object_or_404(Task, pk=pk)
     task.completed_at = None
     task.save(update_fields=["completed_at"])
-    return HttpResponse("")
+    return render(request, "core/partials/task_row_reopened.html", {"task": task})
 
 
 _MOVE_TARGETS = {"someday": Task.List.SOMEDAY, "waiting": Task.List.WAITING, "trash": Task.List.TRASH, "next": Task.List.NEXT}

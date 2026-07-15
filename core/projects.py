@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .google_calendar import get_credential
+from .lists import _toggle_url
 from .models import Task
 from .tagging import sync_tags_from_text
 from .timeblocks import blocks_json
@@ -25,15 +26,36 @@ def _next_line(project):
 
 @login_required
 def projects_view(request):
+    show_done = request.GET.get("show_done") == "1"
     projects = list(
         Task.objects.filter(is_project=True, completed_at__isnull=True).order_by("sort_order", "id")
     )
     badges = {p.id: _project_state_badge(p) for p in projects}
     next_lines = {p.id: _next_line(p) for p in projects}
+    done_projects = []
+    if show_done:
+        done_projects = list(
+            Task.objects.filter(is_project=True, completed_at__isnull=False).order_by("-completed_at")[:50]
+        )
+    chips = [
+        {
+            "label": "show done",
+            "variant": "plain",
+            "active": show_done,
+            "url": _toggle_url(request, "show_done", "1"),
+        }
+    ]
     return render(
         request,
         "core/projects.html",
-        {"projects": projects, "badges": badges, "next_lines": next_lines},
+        {
+            "projects": projects,
+            "badges": badges,
+            "next_lines": next_lines,
+            "chips": chips,
+            "show_done": show_done,
+            "done_projects": done_projects,
+        },
     )
 
 

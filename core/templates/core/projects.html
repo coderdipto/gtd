@@ -4,6 +4,7 @@
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-6">
   <h1 class="font-display font-bold text-2xl mb-4">Projects</h1>
+  <div class="mb-4">{% include "components/filter_bar.html" %}</div>
   <div class="grid gap-3">
     {% for project in projects %}
       <a href="{% url 'project_detail' project.id %}"
@@ -24,5 +25,27 @@
       {% include "components/empty_state.html" with icon="icons/folder.svg" heading="No projects yet." body="Turn a multi-step outcome into a project from the clarify wizard." %}
     {% endfor %}
   </div>
+
+  {% if show_done %}
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mt-6 mb-2">Completed</h2>
+    <div class="divide-y divide-line border-t border-b border-line">
+      {% for project in done_projects %}
+        <div id="task-row-{{ project.id }}" class="flex items-center justify-between gap-3 py-3 px-1">
+          <a href="{% url 'project_detail' project.id %}" class="text-sm truncate text-ink-soft hover:text-water hover:underline focus-visible:ring-2 ring-water focus:outline-none rounded-sm">{{ project.title }}</a>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="font-mono text-xs text-ink-soft">done {{ project.completed_at|date:"d M" }}</span>
+            <button type="button"
+                    hx-post="{% url 'task_reopen' project.id %}"
+                    hx-target="#task-row-{{ project.id }}" hx-swap="outerHTML swap:150ms"
+                    class="text-water hover:underline text-xs focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+              Reopen
+            </button>
+          </div>
+        </div>
+      {% empty %}
+        <p class="text-ink-soft text-sm py-6 text-center">No completed projects yet.</p>
+      {% endfor %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

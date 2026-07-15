@@ -12,5 +12,16 @@
       {% include "components/empty_state.html" with icon="icons/circle-check.svg" heading="Nothing next." body="Capture something, then clarify it into your next action." action_url="/capture/" action_label="Capture" %}
     {% endfor %}
   </div>
+
+  {% if show_done %}
+    <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mt-6 mb-2">Completed</h2>
+    <div class="divide-y divide-line border-t border-b border-line">
+      {% for task in done_tasks %}
+        {% include "components/task_row.html" with task=task meta=done_meta|get_item:task.id show_complete=False primary_actions=done_actions|get_item:task.id %}
+      {% empty %}
+        <p class="text-ink-soft text-sm py-6 text-center">No completed tasks yet.</p>
+      {% endfor %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
