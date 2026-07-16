@@ -39,6 +39,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+          # This project splits requirements under requirements/*.txt, so tell
+          # the pip cache what to hash (it otherwise looks only for a top-level
+          # requirements.txt / pyproject.toml and errors out).
+          cache-dependency-path: requirements/*.txt
 
       # Install prod deps too so the boto3-dependent backup test can run.
       - name: Install dependencies
