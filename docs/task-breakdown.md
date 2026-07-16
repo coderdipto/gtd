@@ -4,7 +4,7 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Findings from planning session (2026-07-13)
 
-- Reviewed `solution-plan.md`, `design.md`, and the `design-files/` prototypes (`app-today.png`, `clarify-overlay.png`, `options.png`, `lower.png`). The prototypes confirm the "Paper — light" direction (`1b` in `options.png`) is what `design.md` documents; a dark "Nocturne" alternative was explored and rejected — matches CLAUDE.md's "dark mode out of scope for v1."
+- Reviewed `solution-plan.md` and `design.md` (alongside early design-tool prototypes). Confirmed the "Paper — light" direction is what `design.md` documents; a dark "Nocturne" alternative was explored and rejected — matches CLAUDE.md's "dark mode out of scope for v1."
 - All three "open decisions" in `solution-plan.md` were revisited and **confirmed as their stated defaults** — no changes to the plan:
   - `due_date` field stays on `Task` (nullable), independent of calendar time-blocks.
   - Calendar week view uses **FullCalendar 6 via CDN**, not a hand-rolled grid.
@@ -24,7 +24,7 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ## Epic 0 — Repo bootstrap (precursor to Step 1)
 
-- [ ] `git init`, initial commit of existing `docs/`, `design-files/`, `CLAUDE.md`.
+- [ ] `git init`, initial commit of existing `docs/`, `CLAUDE.md`.
 - [ ] Add `.gitignore` (Python/Django/Node-free, `static/css/app.css` is committed per plan — do NOT ignore it; ignore `.env`, `__pycache__`, `*.pyc`, media uploads).
 - [ ] Confirm Python 3.12 available locally for scaffold.
 
