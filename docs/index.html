@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GTD — a single-user, self-hosted Getting Things Done app</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23be5133' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<meta name="description" content="A self-hosted Getting Things Done task system: capture, clarify, organize, reflect, engage — with Google Calendar time-blocking, guided reviews, an Eisenhower board, and natural-language capture. Django + HTMX + Alpine + Tailwind.">
+<meta property="og:title" content="GTD — self-hosted Getting Things Done">
+<meta property="og:description" content="Capture → clarify → organize → reflect → engage. Self-hosted, single-user, built with Django + HTMX. Runs with one docker compose command.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="screenshots/engage.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#faf3e5; --surface:#fffcf6; --surface-2:#f6ecda; --ink:#2a121b;
+    --ink-soft:#7c6259; --line:#e8ddd0; --water:#be5133; --water-soft:#f8e3d6;
+    --amber:#b45309; --green:#3f7d4e; --violet:#6d28d9;
+    --shadow:0 1px 2px rgba(42,18,27,.05), 0 12px 34px -20px rgba(42,18,27,.35);
+    --serif:"Fraunces","Iowan Old Style",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#1e1410; --surface:#2a1d17; --surface-2:#34251d; --ink:#f3e8dd;
+      --ink-soft:#b39c8c; --line:#4a382e; --water:#e2765a; --water-soft:#3d2a20;
+      --amber:#f0b429; --green:#8fca9b; --violet:#a78bfa;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 14px 40px -22px rgba(0,0,0,.7);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--water);text-decoration:none}
+  a:hover{text-decoration:underline}
+  img{max-width:100%;display:block}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 1.5rem}
+  h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;line-height:1.1;text-wrap:balance}
+  .mono{font-family:var(--mono)}
+
+  /* nav */
+  header.nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;gap:1.4rem;height:60px}
+  .brand{font-family:var(--serif);font-weight:600;font-size:1.3rem}
+  .nav-links{margin-left:auto;display:flex;gap:1.4rem;align-items:center}
+  .nav-links a{color:var(--ink-soft);font-size:.92rem}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--water);color:#fff;padding:.6rem 1.05rem;border-radius:8px;font-size:.9rem;font-weight:500;border:1px solid transparent}
+  .btn:hover{text-decoration:none;filter:brightness(1.05)}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  @media(max-width:680px){.nav-links a.hide-sm{display:none}}
+
+  /* hero */
+  .hero{padding:4.5rem 0 2rem;text-align:center}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--water);margin-bottom:1rem}
+  .hero h1{font-size:clamp(2.4rem,6vw,3.9rem);margin:0 0 1.1rem}
+  .hero p.lede{font-size:1.18rem;color:var(--ink-soft);max-width:44ch;margin:0 auto 1.8rem}
+  .cta{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap}
+  .hero-shot{margin-top:3rem;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .flow-line{margin:1.4rem 0 0;font-family:var(--mono);font-size:.8rem;color:var(--ink-soft)}
+  .flow-line b{color:var(--water)}
+
+  section{padding:4rem 0}
+  .section-head{text-align:center;max-width:52ch;margin:0 auto 2.5rem}
+  .section-head h2{font-size:clamp(1.8rem,4vw,2.4rem);margin:0 0 .6rem}
+  .section-head p{color:var(--ink-soft);margin:0}
+
+  /* flow steps */
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  @media(max-width:820px){.steps{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--surface);padding:1.3rem 1.2rem}
+  .step .n{font-family:var(--mono);font-size:.72rem;color:var(--water)}
+  .step h3{font-size:1.15rem;margin:.35rem 0 .35rem}
+  .step p{margin:0;font-size:.9rem;color:var(--ink-soft)}
+
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+  @media(max-width:820px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.25rem}
+  .card .ico{font-size:1.4rem;line-height:1}
+  .card h3{font-size:1.08rem;margin:.6rem 0 .35rem}
+  .card p{margin:0;font-size:.92rem;color:var(--ink-soft)}
+
+  /* screenshot showcase */
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem}
+  @media(max-width:720px){.shots{grid-template-columns:1fr}}
+  .shot{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow)}
+  .shot figcaption{padding:.7rem 1rem;font-size:.85rem;color:var(--ink-soft);border-top:1px solid var(--line);font-family:var(--mono)}
+  figure{margin:0}
+
+  /* alt band */
+  .band{background:var(--surface-2)}
+
+  /* quickstart */
+  .code{background:#2a1d17;color:#f3e8dd;border-radius:12px;padding:1.2rem 1.3rem;font-family:var(--mono);font-size:.85rem;overflow-x:auto;line-height:1.7;border:1px solid var(--line)}
+  .code .c{color:#b39c8c}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
+  @media(max-width:720px){.two{grid-template-columns:1fr}}
+  .stack-list{list-style:none;padding:0;margin:0}
+  .stack-list li{padding:.5rem 0;border-bottom:1px solid var(--line);color:var(--ink-soft);font-size:.95rem}
+  .stack-list li b{color:var(--ink);font-weight:600}
+
+  .note{background:var(--water-soft);border:1px solid var(--line);border-left:3px solid var(--water);border-radius:10px;padding:1rem 1.2rem;font-size:.92rem;color:var(--ink);max-width:70ch;margin:0 auto}
+
+  footer{border-top:1px solid var(--line);padding:2.5rem 0;color:var(--ink-soft);font-size:.88rem}
+  .foot-in{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center}
+  .foot-links{display:flex;gap:1.2rem}
+  .foot-links a{color:var(--ink-soft)}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <span class="brand">GTD</span>
+    <nav class="nav-links">
+      <a href="#how" class="hide-sm">How it works</a>
+      <a href="#features" class="hide-sm">Features</a>
+      <a href="#run" class="hide-sm">Self-host</a>
+      <a class="btn ghost" href="https://github.com/coderdipto/gtd">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Self-hosted · Single-user · Open source</p>
+    <h1>Your whole GTD system,<br>on your own terms.</h1>
+    <p class="lede">A calm, self-hosted Getting Things Done app — capture what's on your mind, clarify it, and always know what to do next.</p>
+    <div class="cta">
+      <a class="btn" href="#run">Run it in one command</a>
+      <a class="btn ghost" href="https://github.com/coderdipto/gtd">View source</a>
+    </div>
+    <p class="flow-line"><b>capture</b> → <b>clarify</b> → <b>organize</b> → <b>reflect</b> → <b>engage</b></p>
+    <figure class="hero-shot">
+      <img src="screenshots/engage.png" alt="The Engage view: filter next actions by context, available time, and energy" loading="eager">
+    </figure>
+  </div>
+</section>
+
+<section id="how" class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>The five moves of GTD, built in</h2>
+      <p>The app is organized around David Allen's workflow — not a generic to-do list, but the actual method.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><h3>Capture</h3><p>Get everything out of your head into a trusted inbox — web, a quick-capture modal, an iOS Shortcut, or offline (it syncs later).</p></div>
+      <div class="step"><div class="n">02</div><h3>Clarify</h3><p>A guided wizard walks each item through the GTD decision tree with keyboard shortcuts. Is it actionable? A project? Reference?</p></div>
+      <div class="step"><div class="n">03</div><h3>Organize</h3><p>Projects, contexts, horizons, areas, and reusable templates. The next action is always resolved for you.</p></div>
+      <div class="step"><div class="n">04</div><h3>Reflect</h3><p>Guided weekly &amp; monthly reviews, an Eisenhower triage board, Big-3 stars, and a carry-over gate that keeps you honest.</p></div>
+      <div class="step"><div class="n">05</div><h3>Engage</h3><p>"What can I do right now?" — filter your next actions by context × available time × energy, with one-tap presets.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>A closer look</h2>
+      <p>Warm, keyboard-friendly, and fast — HTMX under the hood, no single-page-app bloat.</p>
+    </div>
+    <div class="shots">
+      <figure class="shot"><img src="screenshots/clarify.png" alt="Clarify wizard asking whether an inbox item is actionable" loading="lazy"><figcaption>Clarify — the guided inbox wizard</figcaption></figure>
+      <figure class="shot"><img src="screenshots/today.png" alt="Today view with a curated list and a plan-on-calendar panel" loading="lazy"><figcaption>Today — your curated shortlist</figcaption></figure>
+      <figure class="shot"><img src="screenshots/project.png" alt="Project detail with subtasks, templates and linked notes" loading="lazy"><figcaption>Projects — subtasks, templates, linked notes</figcaption></figure>
+      <figure class="shot"><img src="screenshots/engage.png" alt="Engage view filtering by context, time and energy" loading="lazy"><figcaption>Engage — context × time × energy</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Everything you'd want, nothing you wouldn't</h2>
+      <p>Batteries included; integrations optional. Leave Google Calendar and ntfy unconfigured and it runs fully local.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="ico">🗓️</div><h3>Calendar time-blocking</h3><p>Drag any task — or today's list — onto a calendar to block time. Optional two-way Google Calendar sync.</p></div>
+      <div class="card"><div class="ico">🧠</div><h3>Natural-language capture</h3><p>Type "Call plumber tomorrow 3pm" and it parses the date and pre-fills the due date.</p></div>
+      <div class="card"><div class="ico">🎯</div><h3>Eisenhower review board</h3><p>A drag-only triage board that lives only inside the review — priority stays a practice, not permanent metadata.</p></div>
+      <div class="card"><div class="ico">📝</div><h3>Notes &amp; full-text search</h3><p>Markdown notes with Postgres full-text search, attachments, and links to the work they support.</p></div>
+      <div class="card"><div class="ico">🔁</div><h3>Recurring tasks</h3><p>Human-readable recurrence rules that materialize real task instances — overdue ones pile up instead of vanishing.</p></div>
+      <div class="card"><div class="ico">⌘</div><h3>Command palette</h3><p>⌘K / Ctrl-K to jump anywhere or capture instantly. Built for people who live on the keyboard.</p></div>
+      <div class="card"><div class="ico">📲</div><h3>Push &amp; PWA</h3><p>Installable as an app, with optional ntfy push for missed blocks, review reminders, and follow-ups.</p></div>
+      <div class="card"><div class="ico">🔌</div><h3>Offline capture</h3><p>Capturing must never fail — offline captures queue in a service worker and sync when you reconnect.</p></div>
+      <div class="card"><div class="ico">📊</div><h3>Stats</h3><p>See throughput, inbox-zero streaks, and review cadence — gentle signal, not a productivity guilt trip.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="run">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Run your own in one command</h2>
+      <p>You host it, you own the data. Docker is the fastest path; a native setup and full VM deploy guide are in the repo.</p>
+    </div>
+    <div class="two">
+      <div>
+        <div class="code">
+<span class="c"># clone &amp; start (Postgres + app on :8000)</span><br>
+git clone https://github.com/coderdipto/gtd.git<br>
+cd gtd<br>
+docker compose up --build<br>
+<br>
+<span class="c"># optional: demo login + sample data</span><br>
+docker compose exec web \<br>
+&nbsp;&nbsp;python manage.py seed_demo<br>
+        </div>
+        <p style="color:var(--ink-soft);font-size:.9rem;margin-top:1rem">Then open <span class="mono">localhost:8000</span> and log in as <span class="mono">demo / demo</span>.</p>
+      </div>
+      <div>
+        <h3 style="font-size:1.15rem;margin:0 0 .7rem">Built to stay simple</h3>
+        <ul class="stack-list">
+          <li><b>Django 5</b> · server-rendered, boring in the best way</li>
+          <li><b>HTMX + Alpine.js</b> · interactivity without an SPA</li>
+          <li><b>Tailwind CSS</b> · standalone CLI, no Node build step</li>
+          <li><b>PostgreSQL</b> · full-text search, one dependency</li>
+          <li><b>Cron, not queues</b> · background jobs are management commands</li>
+          <li><b>gunicorn + WhiteNoise</b> · a single container serves it all</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:2.2rem">
+      <p class="note"><b>One instance, one person.</b> GTD is deliberately single-tenant — there's no per-user data separation, so run your own copy rather than sharing one. See the repo's <a href="https://github.com/coderdipto/gtd/blob/master/SECURITY.md">security notes</a> before exposing it to the internet.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <span>MIT-licensed · self-hosted · built with Django + HTMX</span>
+    <span class="foot-links">
+      <a href="https://github.com/coderdipto/gtd">GitHub</a>
+      <a href="https://github.com/coderdipto/gtd/blob/master/LICENSE">License</a>
+      <a href="https://github.com/coderdipto/gtd/blob/master/deploy/DEPLOY.md">Deploy guide</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>
