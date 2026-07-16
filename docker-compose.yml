@@ -1,0 +1,50 @@
+# One-command local run: `docker compose up --build`, then open http://localhost:8000
+#
+# Values are set literally (not ${VAR} interpolation) ON PURPOSE: Compose would
+# otherwise pull them from any ./.env in this directory — e.g. a dev .env with
+# DEBUG=True and your real secrets — and inject those into the container. This
+# stack is deliberately self-contained. It runs with DEBUG=False so WhiteNoise
+# serves the collected static assets exactly like production.
+#
+# To customize (real domain, Google/ntfy integrations, your own secret key),
+# edit the `web.environment` block below, or use the manual deploy in
+# deploy/DEPLOY.md. CHANGE SECRET_KEY before exposing this beyond localhost.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gtd
+      POSTGRES_PASSWORD: gtd
+      POSTGRES_DB: gtd
+    volumes:
+      - gtd_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtd"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: "compose-local-key-change-me-before-you-expose-this-000000"
+      DEBUG: "False"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+      DATABASE_URL: "postgres://gtd:gtd@db:5432/gtd"
+      DJANGO_LOG_DIR: "/tmp"
+      # Optional integrations — blank means "run fully local" (they no-op).
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      FERNET_KEY: ""
+      NTFY_TOPIC: ""
+    ports:
+      - "8000:8000"
+    volumes:
+      - gtd_media:/app/media
+
+volumes:
+  gtd_pgdata:
+  gtd_media:

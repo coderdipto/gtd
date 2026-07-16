@@ -1,29 +1,33 @@
-# Deploying GTD (docs/task-breakdown.md Epic 12)
+# Deploying GTD (bare-metal / VM)
 
-Everything in this directory (`gtd.service`, `nginx-gtd.conf`, `crontab.txt`) is
-generated/reviewed by the coding agent, but **provisioning the actual server,
-DNS, and TLS cert is a manual, one-time task only the user can do** — same
-category of blocker as Epic 8's Google Cloud Console setup. This file is the
-checklist for that manual part; everything it references from the app side
-(the systemd unit, nginx config, cron table, `backup_database`/logging config)
-already exists in this repo and is unit-tested.
+This is the manual checklist for a traditional server deploy (Ubuntu + gunicorn
++ nginx + systemd + cron). If you just want to run it, `docker compose up` is
+far quicker — see the README. Replace `gtd.example.com` with your own domain
+throughout, and `/home/gtd/app` if you install elsewhere.
 
-## 1. EC2 + OS
+The app-side pieces referenced below — the systemd unit, nginx config, cron
+table, `backup_database`/logging config — all already exist in this repo and
+are covered by the test suite. Provisioning the server, DNS, and TLS cert is
+the part only you can do.
 
-1. Launch an EC2 instance running Ubuntu (same pattern as `tracker.sudipto.dev`).
+## 1. Server + OS
+
+1. Launch a VM running Ubuntu.
 2. `apt install python3.12-venv postgresql nginx certbot python3-certbot-nginx`.
 3. Create a dedicated `gtd` system user; app lives at `/home/gtd/app`.
 4. `git clone` this repo there, create `.venv`, `pip install -r requirements/prod.txt`.
 5. Copy `.env.example` to `.env`, fill in real values (`SECRET_KEY`, `DATABASE_URL`,
-   `ALLOWED_HOSTS=gtd.sudipto.dev`, `GOOGLE_*`, `FERNET_KEY`, `NTFY_TOPIC`,
-   `BACKUP_S3_BUCKET`, `DJANGO_LOG_DIR=/var/log/gtd`). Never commit this file.
+   `ALLOWED_HOSTS=gtd.example.com`, `DEBUG=False`, optionally `GOOGLE_*`,
+   `FERNET_KEY`, `NTFY_TOPIC`, `BACKUP_S3_BUCKET`, `DJANGO_LOG_DIR=/var/log/gtd`).
+   Never commit this file. Generate a key with
+   `python -c "import secrets; print(secrets.token_urlsafe(50))"`.
 6. `mkdir -p /var/log/gtd /var/lib/gtd` (or wherever `DJANGO_LOG_DIR` points), owned by `gtd`.
 
 ## 2. Database
 
 1. Create a local Postgres role/database matching `DATABASE_URL`.
 2. `manage.py migrate`.
-3. `manage.py createsuperuser` (one-time, matches the existing single-user setup).
+3. `manage.py createsuperuser` (one-time — this is a single-user app).
 
 ## 3. Static files
 
@@ -36,9 +40,9 @@ already exists in this repo and is unit-tested.
    paths/user if they differ from `/home/gtd/app`. `systemctl enable --now gtd`.
 2. Copy `deploy/nginx-gtd.conf` to `/etc/nginx/sites-available/gtd`, symlink
    into `sites-enabled`, `nginx -t && systemctl reload nginx`.
-3. **DNS**: point `gtd.sudipto.dev` at the EC2 instance's IP (A record) — the
-   agent cannot do this; needs access to the domain's DNS provider.
-4. **TLS**: `certbot --nginx -d gtd.sudipto.dev` (also handles the cert
+3. **DNS**: point `gtd.example.com` at the server's IP (A record) via your
+   domain's DNS provider.
+4. **TLS**: `certbot --nginx -d gtd.example.com` (also handles the cert
    paths already referenced in `nginx-gtd.conf`, and sets up its own renewal
    timer — no cron entry needed for that part).
 
@@ -57,7 +61,7 @@ S3 retention).
 
 ## 7. Smoke test after deploy
 
-- `https://gtd.sudipto.dev/` redirects to login, then to Today after auth.
+- `https://gtd.example.com/` redirects to login, then to Today after auth.
 - Settings → Google Calendar "Connect" completes the real OAuth round-trip.
 - Settings → Notifications "Test" button delivers a real ntfy push.
 - Upload a Note attachment, confirm the download link works (this is the

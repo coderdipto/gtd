@@ -1,0 +1,20 @@
+# Never bake secrets or local cruft into the image.
+.env
+.env.*
+.git
+.gitignore
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.playwright-mcp/
+.mcp.json
+staticfiles/
+media/
+node_modules/
+.bin/
+design-files/
+docs/screenshots/
+*.log

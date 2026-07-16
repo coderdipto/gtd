@@ -23,9 +23,22 @@ env = environ.Env(
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-only-change-me")
+INSECURE_SECRET_KEY = "django-insecure-dev-only-change-me"
+SECRET_KEY = env("SECRET_KEY", default=INSECURE_SECRET_KEY)
 
 DEBUG = env.bool("DEBUG", default=False)
+
+# Fail loudly rather than serve production with the throwaway dev key — the
+# single most common self-host footgun. Only enforced with DEBUG off so local
+# work keeps running keyless.
+if not DEBUG and SECRET_KEY == INSECURE_SECRET_KEY:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured(
+        "SECRET_KEY is unset (using the insecure dev default) while DEBUG is "
+        "False. Set a real SECRET_KEY in the environment before running in "
+        "production — e.g. python -c 'import secrets; print(secrets.token_urlsafe(50))'"
+    )
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
