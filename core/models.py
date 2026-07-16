@@ -31,7 +31,7 @@ class Area(models.Model):  # Horizon 2: roles
 class InboxItem(models.Model):
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True)
-    source = models.CharField(max_length=20, default="web")  # web|shortcut|review
+    source = models.CharField(max_length=20, default="web")  # web|shortcut|desktop|review
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     done_directly = models.BooleanField(default=False)  # 2-minute rule

@@ -12,6 +12,10 @@ from .models import CaptureToken, InboxItem
 
 RATE_LIMIT_PER_MINUTE = 60
 
+# Values a token-authed client is allowed to claim for InboxItem.source.
+# "web"/"review" are set server-side by their own code paths, never by a client.
+ALLOWED_SOURCES = {"shortcut", "desktop"}
+
 
 def _rate_limited(token_str):
     # cache.add() only sets the key if absent (atomic), and cache.incr() is an
@@ -53,10 +57,18 @@ def capture(request):
     if not title:
         return JsonResponse({"detail": "title is required"}, status=400)
 
+    # Clients may name themselves, but only from a closed set - `source` is a
+    # plain CharField with no choices validation, so an unrecognized value would
+    # otherwise be stored verbatim. Anything unknown (including the iOS Shortcut,
+    # which sends no source at all) falls back to the historical default.
+    source = payload.get("source")
+    if source not in ALLOWED_SOURCES:
+        source = "shortcut"
+
     item = InboxItem.objects.create(
         title=title[:300],
         description=payload.get("description") or "",
-        source="shortcut",
+        source=source,
     )
 
     token.last_used_at = timezone.now()

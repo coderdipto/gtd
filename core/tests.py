@@ -186,6 +186,30 @@ class CaptureApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_desktop_source_is_recorded(self):
+        response = self.client.post(
+            reverse("api_capture"),
+            data=json.dumps({"title": "Ship the thing", "source": "desktop"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token.token}",
+        )
+        self.assertEqual(response.status_code, 201)
+        item = InboxItem.objects.get(pk=response.json()["id"])
+        self.assertEqual(item.source, "desktop")
+
+    def test_unknown_source_falls_back_to_shortcut(self):
+        # source is a plain CharField with no choices validation, so without the
+        # whitelist in api.py an arbitrary client string would be stored as-is.
+        response = self.client.post(
+            reverse("api_capture"),
+            data=json.dumps({"title": "Ship the thing", "source": "web"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.token.token}",
+        )
+        self.assertEqual(response.status_code, 201)
+        item = InboxItem.objects.get(pk=response.json()["id"])
+        self.assertEqual(item.source, "shortcut")
+
     def test_rate_limit_enforced(self):
         headers = {"HTTP_AUTHORIZATION": f"Bearer {self.token.token}"}
         for _ in range(60):

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GTD Capture</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Clicking the transparent area around the card dismisses, matching the
+         "type it and it's gone" feel of the hotkey itself. -->
+    <div class="backdrop" data-dismiss></div>
+
+    <div id="static-probe" style="position:fixed;top:0;left:0;width:60px;height:60px;background:#00ff00;z-index:9999"></div>
+
+    <main class="card" id="view-capture">
+      <header class="card-head">
+        <span class="label">Capture</span>
+        <span class="queue" id="queue-badge" hidden></span>
+      </header>
+
+      <form id="capture-form" autocomplete="off">
+        <input
+          id="title"
+          class="title-input"
+          type="text"
+          placeholder="What's on your mind?"
+          maxlength="300"
+          required
+        />
+        <textarea
+          id="description"
+          class="notes-input"
+          rows="3"
+          placeholder="Notes (optional)"
+        ></textarea>
+
+        <p class="msg" id="capture-msg" role="status" hidden></p>
+
+        <footer class="card-foot">
+          <span class="hint">
+            <kbd id="submit-hint">⌘↵</kbd> to capture · <kbd>Esc</kbd> to dismiss
+          </span>
+          <button type="submit" class="btn" id="capture-btn">Capture</button>
+        </footer>
+      </form>
+    </main>
+
+    <main class="card" id="view-settings" hidden>
+      <header class="card-head">
+        <span class="label">Settings</span>
+      </header>
+
+      <form id="settings-form" autocomplete="off">
+        <label class="field">
+          <span class="field-label">Server URL</span>
+          <input
+            id="server-url"
+            class="text-input mono"
+            type="url"
+            placeholder="https://gtd.sudipto.dev"
+            required
+          />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Capture token</span>
+          <input
+            id="token"
+            class="text-input mono"
+            type="password"
+            placeholder="Paste the token from Django admin"
+            required
+          />
+          <span class="field-help"
+            >Django admin → Capture tokens → add one labelled “Mac” or
+            “Windows”.</span
+          >
+        </label>
+
+        <label class="field">
+          <span class="field-label">Global hotkey</span>
+          <input
+            id="hotkey"
+            class="text-input mono"
+            type="text"
+            placeholder="CmdOrCtrl+Shift+Space"
+          />
+          <span class="field-help"
+            >Modifiers joined with <code>+</code>, e.g.
+            <code>CmdOrCtrl+Shift+Space</code>.</span
+          >
+        </label>
+
+        <p class="msg" id="settings-msg" role="status" hidden></p>
+
+        <footer class="card-foot">
+          <button type="button" class="btn ghost" id="test-btn">
+            Test connection
+          </button>
+          <button type="submit" class="btn" id="save-btn">Save</button>
+        </footer>
+      </form>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

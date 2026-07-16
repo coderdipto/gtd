@@ -1,0 +1,244 @@
+/* Palette lifted from docs/design.md §2 so the desktop box reads as the same
+   product as the web app. Literal hex rather than the Tailwind tokens: this
+   app has no Tailwind build, and one small stylesheet doesn't warrant one. */
+:root {
+  --paper: #faf3e5;
+  --surface: #fffcf6;
+  --ink: #2a121b;
+  --ink-soft: #7c6259;
+  --line: #e8ddd0;
+  --water: #be5133;
+  --water-soft: #f8e3d6;
+  --amber: #b45309;
+  --amber-bg: #fef3c7;
+  --red: #b91c1c;
+  --red-bg: #fee2e2;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background: transparent;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  /* The window is a frameless floating panel; a stray text selection drag
+     across the backdrop looks broken. Inputs re-enable it below. */
+  user-select: none;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 18px 48px rgba(42, 18, 27, 0.22);
+  animation: rise 120ms ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.label {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.queue {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--amber);
+  background: var(--amber-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* ------------------------------------------------------------ form fields */
+
+.title-input,
+.notes-input,
+.text-input {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  user-select: text;
+}
+
+.title-input {
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.notes-input {
+  margin-top: 8px;
+  font-size: 13px;
+  resize: none;
+}
+
+.title-input:focus,
+.notes-input:focus,
+.text-input:focus {
+  outline: none;
+  border-color: var(--water);
+  box-shadow: 0 0 0 3px var(--water-soft);
+}
+
+.title-input::placeholder,
+.notes-input::placeholder,
+.text-input::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+.field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.field-help {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.field-help code {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 10px;
+}
+
+.mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------ foot / state */
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+kbd {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--surface);
+  background: var(--water);
+  border: 1px solid var(--water);
+  border-radius: 6px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn.ghost {
+  color: var(--ink-soft);
+  background: transparent;
+  border-color: var(--line);
+}
+
+.msg {
+  font-size: 12px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+}
+
+.msg.ok {
+  color: var(--water);
+  background: var(--water-soft);
+}
+
+.msg.warn {
+  color: var(--amber);
+  background: var(--amber-bg);
+}
+
+.msg.err {
+  color: var(--red);
+  background: var(--red-bg);
+}
+
+[hidden] {
+  display: none !important;
+}

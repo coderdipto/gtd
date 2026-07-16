@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capture window: core events/window control plus the global capture hotkey.",
+  "windows": ["main"],
+  "permissions": ["core:default", "global-shortcut:default"]
+}

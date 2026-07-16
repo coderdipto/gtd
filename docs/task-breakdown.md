@@ -210,9 +210,34 @@ Companion to `solution-plan.md` (behavior/data authority) and `design.md` (look/
 
 ---
 
+## Post-v1 — Desktop capture client (`desktop/`)
+
+Not part of the original 12 epics; requested after v1 was functionally complete. A capture-only Tauri 2 app for macOS/Windows — the desktop equivalent of the PWA's capture screen, reachable on a global hotkey so a thought never has to survive "find the browser tab."
+
+- [x] Tauri 2 scaffold, `desktop/` (Rust + plain HTML/CSS/JS frontend, **no bundler** — `frontendDist` points straight at `ui/`, npm vendors only the Tauri CLI). Palette hand-copied from `docs/design.md` §2 into `ui/style.css`; it does **not** share Tailwind's tokens, so a future recolor needs a manual edit here too.
+- [x] Menu-bar/tray app (macOS `ActivationPolicy::Accessory` — no dock icon), frameless always-on-top capture window, hidden by default; close/blur hides rather than exits.
+- [x] Global hotkey (default `CmdOrCtrl+Shift+Space`, configurable), Esc/backdrop-click to dismiss, Enter to capture.
+- [x] Offline queue: retryable failures (network/5xx/429) → `queue.json` in the app-data dir, flushed by a 30s background task + a tray "Send pending now". Non-retryable (401/400) deliberately **not** queued — they'd fail identically forever — and surface as an error instead.
+- [x] Server side: `core/api.py` now accepts a client-declared `source` from a closed whitelist (`shortcut`/`desktop`), defaulting to `shortcut`. No migration — `source` is an unconstrained `CharField` and its default is unchanged.
+- [x] **Test:** 2 new tests (14/14 in `CaptureApiTests`) — `source: "desktop"` is recorded; an unknown/server-owned source (`"web"`) falls back to `shortcut`.
+
+**What was actually verified** (and what wasn't — same spirit as the Epic 8/10/12 caveats):
+
+- Verified: release bundle builds (`.app` + 2.9MB `.dmg`, aarch64); the binary launches and survives with no stderr, so `setup()`'s tray build and the `CmdOrCtrl+Shift+Space` registration both succeed on macOS; the HTTP contract against a real local dev server — 201 on a valid `source: "desktop"` capture (item stored with the right title/description/source), 401 `{"detail": "invalid token"}`, and 400 `{"detail": "title is required"}`, all three matching what `main.rs` parses.
+- Verified by the user, manually, on macOS: the UI works — the capture window looks and behaves right. This was an eyeball pass, not an exhaustive one; the offline queue draining and the tray menu weren't specifically confirmed, so the `Focused(false)` question below is still open.
+- **Not verified: Windows, at all.** It has never been built there, let alone run — the accelerator-string parsing and tray behavior are still reasoned-about only. Planned for later.
+- Fixed during the build, worth knowing about: `setup()` originally emitted `show-view: settings` on first run, which races the webview's load and can be dropped — a first-run user would land on an unconfigurable capture box. The initial view is now chosen by `ui/app.js::init` after the frontend exists. Any future "tell the frontend something at startup" needs the same treatment.
+- Most likely to bite first, since it could only be reasoned about: the accelerator-string parsing on Windows, and whether `Focused(false)` fires before the click that triggered it (which decides whether backdrop-click-to-dismiss double-fires).
+
+**Deliberate scope cuts:** builds are ad-hoc signed (`signingIdentity: "-"`), not Developer-ID signed — verified sufficient for the build-it-and-run-it-here case, since Gatekeeper only evaluates apps carrying a download-attached `com.apple.quarantine` xattr, which a locally-compiled app never has. (`spctl -a` reports "rejected" regardless; that verdict is only consulted for quarantined apps, so it isn't the thing to check.) A Developer ID would only be needed to hand the `.dmg` to another machine. No cross-compilation — each platform's installer is built on that platform. The token sits in plaintext in `settings.json`, acceptable *only* because a `CaptureToken` can create inbox items and nothing else; don't reuse that posture for a wider-scoped credential.
+
+---
+
 ## Explicitly out of scope (v2 backlog — do not implement)
 
 Email-to-inbox capture; offline PWA queue; creating tasks from raw GCal events; multi-user; natural-language capture parsing; Areas on Notes; AI features.
+
+(Note: the *desktop* client does have an offline queue, added post-v1 above — the out-of-scope item is specifically the **PWA**'s service-worker queue, which remains unbuilt.)
 
 ## Blocking external actions (not automatable by the agent)
 
