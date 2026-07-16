@@ -375,7 +375,14 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     )?;
 
     TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+        // A dedicated template icon, NOT the app icon. macOS template images are
+        // drawn from the alpha channel alone — every opaque pixel is repainted in
+        // the menu-bar foreground colour — so the glyph has to be the opaque part
+        // and the backdrop transparent. The app icon is the exact inverse (an
+        // opaque filled square with the mark painted on top), so using it here
+        // rendered a solid block in the menu bar. Regenerate with
+        // scripts/make_tray_icon.swift if the mark ever changes.
+        .icon(tauri::include_image!("icons/tray-icon.png"))
         .icon_as_template(true)
         .tooltip("GTD Capture")
         .menu(&menu)
