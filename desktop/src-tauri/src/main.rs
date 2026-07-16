@@ -138,6 +138,15 @@ fn emit_queue_changed(app: &AppHandle, len: usize) {
 
 // ------------------------------------------------------------------ network
 
+/// A 5xx is the server being briefly unwell; 429/408 are it asking us to come
+/// back later. Everything else in the 4xx range is a verdict on the payload
+/// itself, which won't change by being sent again.
+fn status_is_retryable(status: reqwest::StatusCode) -> bool {
+    status.is_server_error()
+        || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+        || status == reqwest::StatusCode::REQUEST_TIMEOUT
+}
+
 async fn post_item(settings: &Settings, item: &QueuedItem) -> Result<(), PostError> {
     let client = reqwest::Client::builder()
         .timeout(HTTP_TIMEOUT)
@@ -168,9 +177,7 @@ async fn post_item(settings: &Settings, item: &QueuedItem) -> Result<(), PostErr
         return Ok(());
     }
 
-    let retryable = status.is_server_error()
-        || status == reqwest::StatusCode::TOO_MANY_REQUESTS
-        || status == reqwest::StatusCode::REQUEST_TIMEOUT;
+    let retryable = status_is_retryable(status);
 
     let detail = response
         .json::<serde_json::Value>()
@@ -470,4 +477,76 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running GTD Capture");
+}
+
+// -------------------------------------------------------------------- tests
+//
+// Only the pure decision logic is covered here — the parts that decide whether
+// a capture is sendable and whether a failure is worth keeping. The queue's
+// actual read/flush cycle needs a live AppHandle, so it's verified by running
+// the app against a real server instead (see docs/task-breakdown.md).
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::StatusCode;
+
+    fn settings(server_url: &str, token: &str) -> Settings {
+        Settings {
+            server_url: server_url.into(),
+            token: token.into(),
+            hotkey: DEFAULT_HOTKEY.into(),
+        }
+    }
+
+    #[test]
+    fn server_errors_are_retryable() {
+        for code in [500, 502, 503, 504] {
+            let status = StatusCode::from_u16(code).unwrap();
+            assert!(status_is_retryable(status), "HTTP {code} should retry");
+        }
+    }
+
+    #[test]
+    fn backpressure_codes_are_retryable() {
+        assert!(status_is_retryable(StatusCode::TOO_MANY_REQUESTS)); // 429
+        assert!(status_is_retryable(StatusCode::REQUEST_TIMEOUT)); // 408
+    }
+
+    #[test]
+    fn payload_rejections_are_not_retryable() {
+        // The whole point of the queue distinction: an unchanged payload will
+        // fail these forever, so they must surface instead of being swallowed.
+        assert!(!status_is_retryable(StatusCode::UNAUTHORIZED)); // 401, bad token
+        assert!(!status_is_retryable(StatusCode::BAD_REQUEST)); // 400, no title
+        assert!(!status_is_retryable(StatusCode::NOT_FOUND)); // 404, wrong URL
+        assert!(!status_is_retryable(StatusCode::FORBIDDEN)); // 403
+    }
+
+    #[test]
+    fn capture_url_tolerates_trailing_slash_and_whitespace() {
+        assert_eq!(
+            settings("http://127.0.0.1:8000", "t").capture_url(),
+            "http://127.0.0.1:8000/api/capture"
+        );
+        assert_eq!(
+            settings("http://127.0.0.1:8000/", "t").capture_url(),
+            "http://127.0.0.1:8000/api/capture"
+        );
+        assert_eq!(
+            settings("  https://gtd.sudipto.dev///  ", "t").capture_url(),
+            "https://gtd.sudipto.dev/api/capture"
+        );
+    }
+
+    #[test]
+    fn configured_requires_both_url_and_token() {
+        assert!(settings("http://127.0.0.1:8000", "tok").configured());
+        assert!(!settings("", "tok").configured());
+        assert!(!settings("http://127.0.0.1:8000", "").configured());
+        assert!(!Settings::default().configured());
+        // Whitespace isn't configuration.
+        assert!(!settings("   ", "tok").configured());
+        assert!(!settings("http://127.0.0.1:8000", "   ").configured());
+    }
 }
