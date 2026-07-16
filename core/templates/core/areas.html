@@ -15,7 +15,7 @@
       <label class="block text-xs text-ink-soft mb-1">Description</label>
       {{ form.description }}
     </div>
-    <button type="submit" class="h-9 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Add area</button>
+    <button type="submit" class="h-9 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Add area</button>
   </form>
 
   <div class="divide-y divide-line border-t border-b border-line">
@@ -25,27 +25,27 @@
           <p class="text-sm font-medium truncate">{{ area.name }}</p>
           {% if area.description %}<p class="text-xs text-ink-soft truncate">{{ area.description }}</p>{% endif %}
         </div>
-        <span class="text-xs text-ink-soft font-mono shrink-0">{{ area.task_count }} tasks</span>
+        <span class="text-xs text-ink-soft font-mono shrink-0">{{ area.task_count }} task{{ area.task_count|pluralize }}</span>
         <button type="button" @click="editing = !editing" class="btn-secondary h-7 px-2 text-xs shrink-0">Edit</button>
 
         <form method="post" action="{% url 'area_delete' area.id %}"
               hx-confirm="Delete {{ area.name }}? Tasks and templates using it just lose the label, they aren't deleted."
               class="shrink-0">
           {% csrf_token %}
-          <button type="submit" class="h-7 px-2 rounded-md text-red text-xs hover:underline focus-visible:ring-2 ring-water focus:outline-none">Delete</button>
+          <button type="submit" class="h-7 px-2 rounded-md text-red text-xs hover:underline focus:outline-none">Delete</button>
         </form>
 
         <div x-show="editing" x-cloak class="basis-full order-1">
           <form method="post" action="{% url 'area_edit' area.id %}" class="space-y-2 mt-2">
             {% csrf_token %}
             <input type="text" name="name" value="{{ area.name }}" required
-                   class="w-full h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+                   class="w-full h-8 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
             <textarea name="description" rows="2"
-                      class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none">{{ area.description }}</textarea>
+                      class="w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">{{ area.description }}</textarea>
             <div class="flex items-center gap-2">
               <label class="text-xs text-ink-soft">Sort order</label>
               <input type="number" name="sort_order" value="{{ area.sort_order }}"
-                     class="w-20 h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+                     class="w-20 h-8 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
               <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Save</button>
             </div>
           </form>

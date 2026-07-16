@@ -12,19 +12,19 @@
     <div>
       <label class="block text-xs text-ink-soft mb-1">Title</label>
       <input type="text" name="title" value="{{ template.title|default:'' }}" required autofocus
-             class="w-full h-10 text-sm border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+             class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-3 focus:border-water focus:outline-none">
     </div>
     <div>
       <label class="block text-xs text-ink-soft mb-1">Description</label>
       <textarea name="description" rows="2"
-                class="w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">{{ template.description|default:'' }}</textarea>
+                class="w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">{{ template.description|default:'' }}</textarea>
     </div>
 
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-xs text-ink-soft mb-1">Frequency</label>
         <select name="freq" x-model="freq"
-                class="w-full h-10 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+                class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
           {% for f in frequencies %}
             <option value="{{ f }}" {% if f == initial.freq %}selected{% endif %}>{{ f|capfirst }}</option>
           {% endfor %}
@@ -33,7 +33,7 @@
       <div>
         <label class="block text-xs text-ink-soft mb-1">Interval (every N)</label>
         <input type="number" name="interval" min="1" value="{{ initial.interval }}"
-               class="w-full h-10 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+               class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
       </div>
     </div>
 
@@ -51,7 +51,7 @@
 
     <div>
       <label class="block text-xs text-ink-soft mb-1">Area</label>
-      <select name="area" class="w-full h-10 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+      <select name="area" class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
         <option value="">—</option>
         {% for a in areas %}
           <option value="{{ a.id }}" {% if template.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>
@@ -63,17 +63,17 @@
       <div>
         <label class="block text-xs text-ink-soft mb-1">Standing block start (optional)</label>
         <input type="time" name="block_start_time" value="{{ template.block_start_time|time:'H:i'|default:'' }}"
-               class="w-full h-10 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+               class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
       </div>
       <div>
         <label class="block text-xs text-ink-soft mb-1">Duration (minutes)</label>
         <input type="number" name="block_duration_min" min="5" value="{{ template.block_duration_min|default:'' }}"
-               class="w-full h-10 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+               class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
       </div>
     </div>
-    <p class="text-ink-soft text-xs">Standing blocks sync to Google Calendar once it's connected (Epic 8).</p>
+    <p class="text-ink-soft text-xs">Standing blocks sync to Google Calendar once it's connected.</p>
 
-    <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save</button>
+    <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save</button>
   </form>
 </div>
 {% endblock %}

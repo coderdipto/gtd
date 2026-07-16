@@ -4,8 +4,8 @@ from django.contrib.auth.forms import AuthenticationForm
 from .models import Area, InboxItem, Note, Task
 
 TEXT_INPUT_CLASS = (
-    "w-full text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none "
-    "focus-visible:ring-2 ring-water"
+    "w-full text-sm bg-surface text-ink border border-line rounded-md p-2 "
+    "focus:border-water focus:outline-none"
 )
 TEXTAREA_CLASS = TEXT_INPUT_CLASS
 SELECT_CLASS = TEXT_INPUT_CLASS
@@ -39,7 +39,7 @@ class InboxItemForm(forms.ModelForm):
                     "x-ref": "title",
                     "class": (
                         "w-full text-xl bg-transparent border-0 rounded-md px-3 py-2.5 "
-                        "focus:outline-none focus-visible:ring-2 ring-water"
+                        "focus:outline-none"
                     ),
                 }
             ),
@@ -49,7 +49,7 @@ class InboxItemForm(forms.ModelForm):
                     "placeholder": "Details (optional)",
                     "class": (
                         "w-full text-sm bg-transparent border border-line rounded-md p-3 "
-                        "focus:border-water focus:outline-none focus-visible:ring-2 ring-water"
+                        "focus:border-water focus:outline-none"
                     ),
                 }
             ),
@@ -82,17 +82,32 @@ class SomedayForm(forms.ModelForm):
 class NoteForm(forms.ModelForm):
     class Meta:
         model = Note
-        fields = ["title", "body"]
+        fields = ["title", "body", "linked_project"]
         widgets = {
             "title": forms.TextInput(attrs={"class": TEXT_INPUT_CLASS, "autofocus": True}),
             "body": forms.Textarea(attrs={"class": TEXTAREA_CLASS, "rows": 5, **TAG_FIELD_ATTRS}),
+            "linked_project": forms.Select(attrs={"class": SELECT_CLASS}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only offer active (not completed/trashed) projects to link to; the
+        # blank choice keeps the link optional (task #19).
+        self.fields["linked_project"].queryset = Task.objects.filter(
+            is_project=True, completed_at__isnull=True
+        ).exclude(list=Task.List.TRASH).order_by("title")
+        self.fields["linked_project"].required = False
+        self.fields["linked_project"].label = "Linked project"
+        self.fields["linked_project"].empty_label = "— none —"
 
 
 class SingleActionForm(forms.ModelForm):
     class Meta:
         model = Task
-        fields = ["title", "description", "horizon", "due_date", "area"]
+        # energy/estimate_min (task #16) are optional Engage facets — included
+        # here so task detail can edit them, but the clarify Single screen's
+        # template only renders the core fields, keeping capture lean.
+        fields = ["title", "description", "horizon", "due_date", "area", "energy", "estimate_min"]
         widgets = {
             "title": forms.TextInput(attrs={"class": TEXT_INPUT_CLASS, "autofocus": True}),
             "description": forms.Textarea(
@@ -101,6 +116,8 @@ class SingleActionForm(forms.ModelForm):
             "horizon": forms.Select(attrs={"class": SELECT_CLASS}),
             "due_date": forms.DateInput(attrs={"class": TEXT_INPUT_CLASS, "type": "date"}),
             "area": forms.Select(attrs={"class": SELECT_CLASS}),
+            "energy": forms.Select(attrs={"class": SELECT_CLASS}),
+            "estimate_min": forms.NumberInput(attrs={"class": TEXT_INPUT_CLASS, "min": 0, "placeholder": "e.g. 15"}),
         }
 
 

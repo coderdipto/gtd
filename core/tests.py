@@ -1,7 +1,7 @@
 import json
 import os
 import tempfile
-from datetime import date, datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from unittest.mock import ANY, MagicMock, patch
 
 from cryptography.fernet import Fernet
@@ -21,6 +21,8 @@ from core.models import (
     Note,
     NotificationLog,
     NotificationSetting,
+    ProjectTemplate,
+    ProjectTemplateItem,
     RecurringTemplate,
     ReviewConfig,
     ReviewSession,
@@ -439,6 +441,63 @@ class ClarifyWizardTests(TestCase):
         self.assertContains(response, "2 / 2")
 
 
+class NaturalLanguageCaptureTests(TestCase):
+    """Task #14: trailing date phrases pre-fill due_date/horizon at clarify."""
+
+    THURS = date(2026, 7, 16)  # a Thursday, used as a fixed "today"
+
+    def test_parses_tomorrow_and_strips_the_phrase(self):
+        from core.nlp import parse_capture
+
+        p = parse_capture("Call plumber tomorrow 3pm", today=self.THURS)
+        self.assertEqual(p.due_date, date(2026, 7, 17))
+        self.assertEqual(p.cleaned_title, "Call plumber")
+        self.assertEqual(p.parsed_time, time(15, 0))
+
+    def test_weekday_resolves_to_next_such_day(self):
+        from core.nlp import parse_capture
+
+        self.assertEqual(parse_capture("Submit report friday", today=self.THURS).due_date, date(2026, 7, 17))
+        self.assertEqual(parse_capture("Submit report next friday", today=self.THURS).due_date, date(2026, 7, 24))
+
+    def test_relative_offsets(self):
+        from core.nlp import parse_capture
+
+        self.assertEqual(parse_capture("Pay rent in 3 days", today=self.THURS).due_date, date(2026, 7, 19))
+        self.assertEqual(parse_capture("Plan offsite next week", today=self.THURS).due_date, date(2026, 7, 23))
+        self.assertEqual(parse_capture("Dinner tonight", today=self.THURS).due_date, self.THURS)
+
+    def test_no_match_leaves_title_untouched(self):
+        from core.nlp import parse_capture
+
+        # A date-like word that isn't a trailing temporal clause must not fire.
+        p = parse_capture("Buy Monday.com subscription", today=self.THURS)
+        self.assertIsNone(p.due_date)
+        self.assertEqual(p.cleaned_title, "Buy Monday.com subscription")
+        self.assertIsNone(parse_capture("Refactor the parser", today=self.THURS).due_date)
+
+    def test_horizon_mapping(self):
+        from core.nlp import horizon_for_date
+
+        self.assertEqual(horizon_for_date(self.THURS, today=self.THURS), "today")
+        self.assertEqual(horizon_for_date(date(2026, 7, 18), today=self.THURS), "this_week")
+        self.assertEqual(horizon_for_date(date(2026, 7, 28), today=self.THURS), "this_month")
+        self.assertEqual(horizon_for_date(date(2026, 9, 1), today=self.THURS), "anytime")
+
+    def test_clarify_single_get_prefills_parsed_due_date(self):
+        user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+        item = InboxItem.objects.create(title="Call plumber tomorrow")
+        response = self.client.get(reverse("clarify_single", args=[item.id]))
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertEqual(form.initial["title"], "Call plumber")
+        self.assertEqual(form.initial["due_date"], timezone.localdate() + timedelta(days=1))
+        # The raw inbox text is preserved untouched — capture stays lossless.
+        item.refresh_from_db()
+        self.assertEqual(item.title, "Call plumber tomorrow")
+
+
 class TodayViewCompositionTests(TestCase):
     """The four inclusion rules from solution-plan.md Step 5."""
 
@@ -594,18 +653,18 @@ class ProjectViewTests(TestCase):
         response = self.client.get(reverse("project_detail", args=[project.id]))
         self.assertContains(response, "No next action")
 
-    def test_project_with_unflagged_subtasks_shows_no_next_badge(self):
+    def test_project_with_unflagged_subtasks_shows_unflagged_badge(self):
         project = Task.objects.create(title="Project", is_project=True)
         Task.objects.create(title="Sub", parent=project)
         response = self.client.get(reverse("projects"))
-        self.assertContains(response, "no next")
+        self.assertContains(response, "unflagged")
 
     def test_project_with_flagged_subtask_shows_no_stall_badge(self):
         project = Task.objects.create(title="Healthy project", is_project=True)
         Task.objects.create(title="Sub", parent=project, is_next_action=True)
         response = self.client.get(reverse("projects"))
         self.assertNotContains(response, "stalled?")
-        self.assertNotContains(response, "no next")
+        self.assertNotContains(response, "unflagged")
 
     def test_add_subtask_auto_flags_first_one_only(self):
         project = Task.objects.create(title="Project", is_project=True)
@@ -669,6 +728,206 @@ class ProjectViewTests(TestCase):
         self.client.post(reverse("project_flag_next", args=[project.id, sub.id]))
         sub.refresh_from_db()
         self.assertFalse(sub.is_next_action)
+
+
+class EngageViewTests(TestCase):
+    """Task #16: filter next actions by context × time × energy."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_energy_filter_is_at_most_and_includes_unset(self):
+        low = Task.objects.create(title="Low task", energy="low")
+        high = Task.objects.create(title="High task", energy="high")
+        unset = Task.objects.create(title="Unset task")
+        response = self.client.get(reverse("engage"), {"energy": "low"})
+        titles = [t.title for t in response.context["tasks"]]
+        self.assertIn("Low task", titles)
+        self.assertIn("Unset task", titles)  # unset is always eligible
+        self.assertNotIn("High task", titles)
+
+    def test_time_filter_is_at_most_and_includes_unset(self):
+        quick = Task.objects.create(title="Quick", estimate_min=10)
+        long = Task.objects.create(title="Long", estimate_min=90)
+        unset = Task.objects.create(title="No estimate")
+        response = self.client.get(reverse("engage"), {"time": "15"})
+        titles = [t.title for t in response.context["tasks"]]
+        self.assertIn("Quick", titles)
+        self.assertIn("No estimate", titles)
+        self.assertNotIn("Long", titles)
+
+    def test_context_filter(self):
+        ctx = Tag.objects.create(name="desk", is_context=True)
+        at_desk = Task.objects.create(title="Desk work")
+        at_desk.tags.add(ctx)
+        Task.objects.create(title="Anywhere")
+        response = self.client.get(reverse("engage"), {"context": "desk"})
+        titles = [t.title for t in response.context["tasks"]]
+        self.assertEqual(titles, ["Desk work"])
+
+    def test_task_detail_can_set_energy_and_estimate(self):
+        task = Task.objects.create(title="Tune query")
+        self.client.post(
+            reverse("task_detail", args=[task.id]),
+            {"title": "Tune query", "description": "", "horizon": "anytime", "energy": "high", "estimate_min": "45"},
+        )
+        task.refresh_from_db()
+        self.assertEqual(task.energy, "high")
+        self.assertEqual(task.estimate_min, 45)
+
+
+class ProjectTemplateTests(TestCase):
+    """Task #19: reusable project templates + note↔project links."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_save_project_as_template_captures_ordered_subtasks(self):
+        project = Task.objects.create(title="Launch site", is_project=True)
+        Task.objects.create(title="Register domain", parent=project, sort_order=100)
+        Task.objects.create(title="Set up hosting", parent=project, sort_order=200)
+        response = self.client.post(reverse("template_from_project", args=[project.id]))
+        self.assertEqual(response.status_code, 302)
+        template = ProjectTemplate.objects.get(name="Launch site")
+        self.assertEqual(
+            list(template.items.values_list("title", flat=True)),
+            ["Register domain", "Set up hosting"],
+        )
+
+    def test_instantiate_project_from_template(self):
+        template = ProjectTemplate.objects.create(name="Onboard hire")
+        ProjectTemplateItem.objects.create(template=template, title="Create accounts", sort_order=100)
+        ProjectTemplateItem.objects.create(template=template, title="Assign buddy", sort_order=200)
+        response = self.client.post(reverse("project_from_template", args=[template.id]))
+        project = Task.objects.get(title="Onboard hire", is_project=True)
+        self.assertRedirects(response, reverse("project_detail", args=[project.id]))
+        subs = list(project.subtasks.order_by("sort_order"))
+        self.assertEqual([s.title for s in subs], ["Create accounts", "Assign buddy"])
+        # First subtask is the flagged next action (domain rule).
+        self.assertTrue(subs[0].is_next_action)
+        self.assertFalse(subs[1].is_next_action)
+
+    def test_delete_template(self):
+        template = ProjectTemplate.objects.create(name="Throwaway")
+        self.client.post(reverse("template_delete", args=[template.id]))
+        self.assertFalse(ProjectTemplate.objects.filter(pk=template.id).exists())
+
+    def test_note_create_links_project_and_shows_on_project(self):
+        project = Task.objects.create(title="Reno", is_project=True)
+        self.client.post(
+            reverse("note_create"),
+            {"title": "Contractor quotes", "body": "notes", "linked_project": project.id},
+        )
+        note = Note.objects.get(title="Contractor quotes")
+        self.assertEqual(note.linked_project_id, project.id)
+        # The project detail lists it under reference notes.
+        response = self.client.get(reverse("project_detail", args=[project.id]))
+        self.assertContains(response, "Contractor quotes")
+
+    def test_note_update_can_clear_link(self):
+        project = Task.objects.create(title="Reno", is_project=True)
+        note = Note.objects.create(title="Quotes", linked_project=project)
+        self.client.post(reverse("note_update", args=[note.id]), {"title": "Quotes", "body": "", "linked_project": ""})
+        note.refresh_from_db()
+        self.assertIsNone(note.linked_project_id)
+
+
+class InboxBulkClarifyTests(TestCase):
+    """Task #18: batch-process several inbox items at once."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_bulk_someday_processes_only_selected_items(self):
+        a = InboxItem.objects.create(title="Learn go")
+        b = InboxItem.objects.create(title="Read book")
+        c = InboxItem.objects.create(title="Untouched")
+        response = self.client.post(reverse("inbox_bulk"), {"action": "someday", "ids": [a.id, b.id]})
+        self.assertEqual(response.status_code, 200)
+        for item in (a, b):
+            item.refresh_from_db()
+            self.assertIsNotNone(item.processed_at)
+        c.refresh_from_db()
+        self.assertIsNone(c.processed_at)
+        self.assertEqual(Task.objects.filter(list=Task.List.SOMEDAY).count(), 2)
+
+    def test_bulk_trash_creates_trashed_tasks(self):
+        a = InboxItem.objects.create(title="Spam one")
+        b = InboxItem.objects.create(title="Spam two")
+        self.client.post(reverse("inbox_bulk"), {"action": "trash", "ids": [a.id, b.id]})
+        self.assertEqual(Task.objects.filter(list=Task.List.TRASH).count(), 2)
+        self.assertFalse(InboxItem.objects.filter(processed_at__isnull=True).exists())
+
+    def test_bulk_done_marks_directly_done_without_tasks(self):
+        a = InboxItem.objects.create(title="Quick one")
+        self.client.post(reverse("inbox_bulk"), {"action": "done", "ids": [a.id]})
+        a.refresh_from_db()
+        self.assertTrue(a.done_directly)
+        self.assertIsNotNone(a.processed_at)
+        self.assertEqual(Task.objects.count(), 0)
+
+    def test_bulk_rejects_unknown_action(self):
+        a = InboxItem.objects.create(title="Item")
+        response = self.client.post(reverse("inbox_bulk"), {"action": "delegate", "ids": [a.id]})
+        self.assertEqual(response.status_code, 400)
+        a.refresh_from_db()
+        self.assertIsNone(a.processed_at)
+
+    def test_bulk_ignores_already_processed_ids(self):
+        a = InboxItem.objects.create(title="Done already")
+        a.processed_at = timezone.now()
+        a.save(update_fields=["processed_at"])
+        self.client.post(reverse("inbox_bulk"), {"action": "trash", "ids": [a.id]})
+        # No new trashed task — the already-processed item is skipped.
+        self.assertEqual(Task.objects.filter(list=Task.List.TRASH).count(), 0)
+
+    def test_inbox_row_has_selection_checkbox(self):
+        InboxItem.objects.create(title="Pick me")
+        response = self.client.get(reverse("inbox"))
+        self.assertContains(response, 'name="ids"')
+        self.assertContains(response, reverse("inbox_bulk"))
+
+
+class TodayPlanCalendarTests(TestCase):
+    """Task #17: drag a Today task onto the calendar to time-block it."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_today_page_includes_plan_panel_with_draggable_sources(self):
+        Task.objects.create(title="Draft memo", horizon=Task.Horizon.TODAY)
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, "today-plan-calendar")
+        self.assertContains(response, "plan-chip")
+        self.assertContains(response, "Draft memo")
+
+    def test_timeblock_create_via_htmx_returns_204_without_redirect(self):
+        # The drop handler POSTs with the HX-Request header and stays on the
+        # page; it must get an empty 204, not a redirect it would follow.
+        task = Task.objects.create(title="Deep work", horizon=Task.Horizon.TODAY)
+        start = timezone.now().replace(microsecond=0)
+        response = self.client.post(
+            reverse("timeblock_create", args=[task.id]),
+            {"start": start.isoformat(), "end": (start + timedelta(hours=1)).isoformat()},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(TimeBlock.objects.filter(task=task).count(), 1)
+
+    def test_timeblock_create_plain_form_still_redirects(self):
+        # A plain (non-htmx) POST — project_detail's "Add block" form — keeps
+        # its redirect-to-detail behavior.
+        task = Task.objects.create(title="Errand")
+        start = timezone.now().replace(microsecond=0)
+        response = self.client.post(
+            reverse("timeblock_create", args=[task.id]),
+            {"start": start.isoformat(), "end": (start + timedelta(hours=1)).isoformat()},
+        )
+        self.assertEqual(response.status_code, 302)
 
 
 class WaitingSomedayTrashTests(TestCase):

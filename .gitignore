@@ -31,3 +31,7 @@ node_modules/
 # collectstatic output (regenerated at deploy)
 staticfiles/
 
+
+# Local MCP/browser-automation tooling artifacts
+.playwright-mcp/
+.mcp.json

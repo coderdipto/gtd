@@ -7,7 +7,7 @@ filter is active.
 <div class="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1">
   {% for c in chips %}
     <a href="{{ c.url }}"
-       class="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono border shrink-0 whitespace-nowrap focus-visible:ring-2 ring-water focus:outline-none
+       class="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono border shrink-0 whitespace-nowrap focus:outline-none
        {% if c.active %}
          {% if c.variant == 'context' %}bg-water text-white border-water
          {% elif c.variant == 'tag' %}bg-ink text-white border-ink
@@ -21,6 +21,6 @@ filter is active.
     </a>
   {% endfor %}
   {% if clear_url %}
-    <a href="{{ clear_url }}" class="text-xs text-ink-soft hover:text-water underline shrink-0 whitespace-nowrap focus-visible:ring-2 ring-water focus:outline-none rounded-md">clear</a>
+    <a href="{{ clear_url }}" class="text-xs text-ink-soft hover:text-water underline shrink-0 whitespace-nowrap focus:outline-none rounded-md">clear</a>
   {% endif %}
 </div>

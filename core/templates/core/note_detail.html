@@ -13,7 +13,7 @@
       <form method="post" action="{% url 'note_delete' note.id %}"
             hx-confirm="Move this note to trash?" x-show="!editing">
         {% csrf_token %}
-        <button type="submit" class="h-9 px-3 rounded-md text-red text-sm hover:underline focus-visible:ring-2 ring-water focus:outline-none">Delete</button>
+        <button type="submit" class="h-9 px-3 rounded-md text-red text-sm hover:underline focus:outline-none">Delete</button>
       </form>
     </div>
   </div>
@@ -21,6 +21,15 @@
   {% if note.tags.all %}
     <div class="flex items-center gap-2 mb-4" x-show="!editing">
       {% for tag in note.tags.all %}<span class="text-xs font-mono text-ink-soft">{{ tag }}</span>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if note.linked_project %}
+    <div class="mb-4" x-show="!editing">
+      <a href="{% url 'project_detail' note.linked_project.id %}"
+         class="inline-flex items-center gap-1.5 text-xs text-water hover:underline focus:outline-none rounded-md [&_svg]:w-4 [&_svg]:h-4">
+        {% include "icons/folder.svg" %} {{ note.linked_project.title }}
+      </a>
     </div>
   {% endif %}
 
@@ -32,10 +41,18 @@
     <form method="post" action="{% url 'note_update' note.id %}" class="space-y-3">
       {% csrf_token %}
       <input type="text" name="title" value="{{ note.title }}" required
-             class="w-full h-10 text-lg font-medium border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+             class="w-full h-10 text-lg font-medium bg-surface text-ink border border-line rounded-md px-3 focus:border-water focus:outline-none">
       <textarea name="body" rows="12" placeholder="@context #tag"
-                class="w-full text-sm border border-line rounded-md p-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">{{ note.body }}</textarea>
-      <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save</button>
+                class="w-full text-sm bg-surface text-ink border border-line rounded-md p-3 focus:border-water focus:outline-none">{{ note.body }}</textarea>
+      <label class="block text-sm">
+        <span class="text-ink-soft text-xs">Linked project (optional)</span>
+        <select name="linked_project"
+                class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
+          <option value="">— none —</option>
+          {% for p in projects %}<option value="{{ p.id }}" {% if note.linked_project_id == p.id %}selected{% endif %}>{{ p.title }}</option>{% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save</button>
     </form>
   </div>
 
@@ -47,7 +64,7 @@
           <a href="{% url 'note_attachment_download' note.id att.id %}" class="text-water hover:underline truncate">{{ att.original_name }}</a>
           <form method="post" action="{% url 'note_attachment_delete' note.id att.id %}">
             {% csrf_token %}
-            <button type="submit" class="text-red text-xs hover:underline focus-visible:ring-2 ring-water focus:outline-none">Remove</button>
+            <button type="submit" class="text-red text-xs hover:underline focus:outline-none">Remove</button>
           </form>
         </div>
       {% empty %}

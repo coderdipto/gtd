@@ -1,7 +1,19 @@
-// Minimal app-shell cache for fast PWA open. No offline queue (v2 backlog —
-// see docs/task-breakdown.md "Explicitly out of scope").
-const CACHE_NAME = "gtd-shell-v1";
-const SHELL_URLS = ["/capture/", "/static/css/app.css", "/static/js/htmx.min.js", "/static/js/alpine.min.js"];
+// App-shell cache for fast/offline PWA open, plus an offline capture queue
+// (task #15). The queue logic is shared with the page via capture-queue.js,
+// pulled in here with importScripts so both contexts use the same IndexedDB
+// store; the 'sync' handler below replays it when the OS reports connectivity,
+// even if no tab is open.
+importScripts("/static/js/capture-queue.js");
+
+const CACHE_NAME = "gtd-shell-v2";
+const SHELL_URLS = [
+  "/capture/",
+  "/static/css/app.css",
+  "/static/js/htmx.min.js",
+  "/static/js/alpine.min.js",
+  "/static/js/capture-queue.js",
+  "/static/js/capture-offline.js",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)));
@@ -15,6 +27,23 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Background Sync: the browser fires this when connectivity returns (queued
+// while offline via capture-offline.js). Drain the shared IndexedDB queue by
+// replaying each capture POST. Works even with no page open.
+self.addEventListener("sync", (event) => {
+  if (event.tag === "gtd-capture-sync" && self.gtdCaptureQueue) {
+    event.waitUntil(self.gtdCaptureQueue.drain());
+  }
+});
+
+// A page can also nudge the worker to flush immediately (e.g. right after
+// coming online) without waiting for the OS sync signal.
+self.addEventListener("message", (event) => {
+  if (event.data === "gtd-drain-captures" && self.gtdCaptureQueue) {
+    event.waitUntil(self.gtdCaptureQueue.drain());
+  }
 });
 
 self.addEventListener("fetch", (event) => {

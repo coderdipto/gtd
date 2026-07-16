@@ -86,6 +86,10 @@ class Task(models.Model):
     area = models.ForeignKey(Area, null=True, blank=True, on_delete=models.SET_NULL)
     tags = models.ManyToManyField(Tag, blank=True)
     due_date = models.DateField(null=True, blank=True)  # open decision: included
+    # Engage facets (task #16): optional so existing tasks stay untouched and
+    # the Engage view treats "unset" as "always eligible" rather than excluded.
+    energy = models.CharField(max_length=6, choices=[("low", "Low"), ("medium", "Medium"), ("high", "High")], blank=True)
+    estimate_min = models.PositiveSmallIntegerField(null=True, blank=True)  # rough time-to-do
     # Waiting For (only when list == WAITING)
     waiting_on = models.CharField(max_length=120, blank=True)
     waiting_since = models.DateField(null=True, blank=True)
@@ -145,30 +149,36 @@ class Task(models.Model):
                                by sort_order (not explicitly flagged)
         NEEDS_ATTENTION     -> tasks is [] (no incomplete subtasks at all)
         Only meaningful when self.is_project is True.
+
+        Filters/sorts in Python over self.subtasks.all() rather than chaining
+        .filter()/.order_by() onto the related manager - a prefetch_related("subtasks")
+        on the caller's queryset populates the instance-level cache that only a bare
+        .all() can serve; any further queryset chaining bypasses that cache and issues
+        a fresh query per project (the N+1 behind the old /projects/ query count).
         """
-        subtasks = self.subtasks.incomplete().order_by("sort_order", "id")
-        flagged = list(subtasks.filter(is_next_action=True))
+        subtasks = sorted(self.subtasks.all(), key=lambda t: (t.sort_order, t.id))
+        incomplete = [t for t in subtasks if t.completed_at is None]
+        flagged = [t for t in incomplete if t.is_next_action]
         if flagged:
             return "flagged", flagged
-        first = subtasks.first()
-        if first:
-            return "implicit", [first]
+        if incomplete:
+            return "implicit", [incomplete[0]]
         return self.NEEDS_ATTENTION, []
 
     @property
     def progress_label(self):
         """'3/7' style subtask completion count, for the project progress pill."""
-        total = self.subtasks.count()
-        done = self.subtasks.filter(completed_at__isnull=False).count()
-        return f"{done}/{total}"
+        subtasks = list(self.subtasks.all())
+        done = sum(1 for t in subtasks if t.completed_at is not None)
+        return f"{done}/{len(subtasks)}"
 
     @property
     def progress_percent(self):
-        total = self.subtasks.count()
-        if not total:
+        subtasks = list(self.subtasks.all())
+        if not subtasks:
             return 0
-        done = self.subtasks.filter(completed_at__isnull=False).count()
-        return round(100 * done / total)
+        done = sum(1 for t in subtasks if t.completed_at is not None)
+        return round(100 * done / len(subtasks))
 
     @property
     def is_overdue_recurring(self):
@@ -223,6 +233,12 @@ class Note(models.Model):  # Reference (Decision #5)
     title = models.CharField(max_length=300)
     body = models.TextField(blank=True)  # markdown; links live here
     tags = models.ManyToManyField(Tag, blank=True)
+    # Optional link to the project (or any task) this reference material
+    # supports (task #19), so notes live with the work rather than only
+    # sharing tags. related_name lets a project list its notes cheaply.
+    linked_project = models.ForeignKey(
+        "Task", null=True, blank=True, on_delete=models.SET_NULL, related_name="linked_notes"
+    )
     trashed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -355,3 +371,30 @@ class NotificationSetting(models.Model):
 
     def __str__(self):
         return f"{self.kind}: {'on' if self.enabled else 'off'}"
+
+
+class ProjectTemplate(models.Model):
+    """A reusable checklist of subtask titles (task #19). Instantiating one
+    creates a real project Task plus its subtasks; the template itself is never
+    a Task and holds no state beyond its ordered items."""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class ProjectTemplateItem(models.Model):
+    template = models.ForeignKey(ProjectTemplate, on_delete=models.CASCADE, related_name="items")
+    title = models.CharField(max_length=300)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.title

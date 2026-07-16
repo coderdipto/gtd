@@ -3,45 +3,104 @@
 @tailwind utilities;
 
 @layer base {
-  @font-face {
-    font-family: "Plus Jakarta Sans";
-    src: url("/static/fonts/PlusJakartaSans-Regular.woff2") format("woff2");
-    font-weight: 400;
-    font-display: swap;
+  /* Theme tokens as "R G B" triples consumed by tailwind.config.js's
+     rgb(var(--x) / <alpha-value>) color entries. :root holds the light
+     palette (the only palette v1 ever had); [data-theme="dark"] overrides
+     it. The prefers-color-scheme block covers a first-ever visit with no
+     stored choice yet - static/js/theme-toggle.js's inline head snippet
+     sets data-theme from localStorage (or leaves it unset to fall through
+     to this media query) before first paint, so there is no light/dark
+     flash either way. Kept as one block here (not scattered) so the two
+     palettes are easy to compare/tune side by side. */
+  :root {
+    --color-paper: 250 243 229;
+    --color-surface: 255 252 246;
+    --color-ink: 42 18 27;
+    --color-ink-soft: 124 98 89;
+    --color-line: 232 221 208;
+    --color-water: 190 81 51;
+    --color-water-soft: 248 227 214;
+    --color-amber: 180 83 9;
+    --color-amber-bg: 254 243 199;
+    --color-red: 185 28 28;
+    --color-red-bg: 254 226 226;
+    --color-violet: 109 40 217;
+    --color-violet-bg: 237 233 254;
+    --color-star: 202 138 4;
   }
-  @font-face {
-    font-family: "Plus Jakarta Sans";
-    src: url("/static/fonts/PlusJakartaSans-Medium.woff2") format("woff2");
-    font-weight: 500;
-    font-display: swap;
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --color-paper: 30 20 16;
+      --color-surface: 42 29 23;
+      --color-ink: 243 232 221;
+      --color-ink-soft: 179 156 140;
+      --color-line: 74 56 46;
+      --color-water: 226 118 90;
+      --color-water-soft: 61 42 32;
+      --color-amber: 240 180 41;
+      --color-amber-bg: 74 53 16;
+      --color-red: 248 113 113;
+      --color-red-bg: 74 31 31;
+      --color-violet: 167 139 250;
+      --color-violet-bg: 59 46 82;
+      --color-star: 234 179 8;
+    }
   }
-  @font-face {
-    font-family: "Plus Jakarta Sans";
-    src: url("/static/fonts/PlusJakartaSans-SemiBold.woff2") format("woff2");
-    font-weight: 600;
-    font-display: swap;
+
+  :root[data-theme="dark"] {
+    --color-paper: 30 20 16;
+    --color-surface: 42 29 23;
+    --color-ink: 243 232 221;
+    --color-ink-soft: 179 156 140;
+    --color-line: 74 56 46;
+    --color-water: 226 118 90;
+    --color-water-soft: 61 42 32;
+    --color-amber: 240 180 41;
+    --color-amber-bg: 74 53 16;
+    --color-red: 248 113 113;
+    --color-red-bg: 74 31 31;
+    --color-violet: 167 139 250;
+    --color-violet-bg: 59 46 82;
+    --color-star: 234 179 8;
   }
+
+  /* Plus Jakarta Sans, JetBrains Mono, Fraunces, and Space Grotesk are all
+     variable fonts - Google serves one physical woff2 per family covering
+     the whole weight axis, so a single @font-face per family (with a
+     `font-weight: <min> <max>` range) is correct, not one file per weight. */
   @font-face {
     font-family: "Plus Jakarta Sans";
-    src: url("/static/fonts/PlusJakartaSans-Bold.woff2") format("woff2");
-    font-weight: 700;
+    src: url("/static/fonts/PlusJakartaSans-Variable.woff2") format("woff2");
+    font-weight: 100 900;
     font-display: swap;
   }
   @font-face {
     font-family: "JetBrains Mono";
-    src: url("/static/fonts/JetBrainsMono-Regular.woff2") format("woff2");
-    font-weight: 400;
+    src: url("/static/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+    font-weight: 100 800;
     font-display: swap;
   }
+  /* Fraunces: warm, quirky editorial serif - reserved for the "GTD" brand
+     title only (base.html), never for in-page headers, so the two stay
+     visually distinct even though both are "display-ish". */
   @font-face {
-    font-family: "JetBrains Mono";
-    src: url("/static/fonts/JetBrainsMono-Medium.woff2") format("woff2");
-    font-weight: 500;
+    font-family: "Fraunces";
+    src: url("/static/fonts/Fraunces-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: swap;
+  }
+  /* Space Grotesk: geometric sans for in-page h1s/headers (font-display). */
+  @font-face {
+    font-family: "Space Grotesk";
+    src: url("/static/fonts/SpaceGrotesk-Variable.woff2") format("woff2");
+    font-weight: 300 700;
     font-display: swap;
   }
 
   body {
     @apply bg-paper text-ink font-body text-[0.9375rem] leading-normal;
+    transition: background-color 150ms ease, color 150ms ease;
   }
 
   nav svg.lucide {
@@ -51,6 +110,19 @@
 
   [x-cloak] {
     display: none !important;
+  }
+
+  /* Quiet, theme-aware keyboard-focus indicator. Uses box-shadow (not
+     outline) deliberately: nearly every interactive element already carries
+     the Tailwind `focus:outline-none` utility (higher specificity than a
+     bare :focus-visible selector, since it's a class+pseudo-class), so an
+     `outline` rule here would be silently defeated. box-shadow is a
+     different property entirely and always wins. The inner ring matches
+     the page background to punch a visible gap before the accent ring,
+     rather than painting the accent flush against the element's own border. */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(var(--color-paper)), 0 0 0 4px rgb(var(--color-water) / 0.55);
   }
 
   /* Rendered Note markdown (core/templatetags/gtd_extras.py::markdownify) -
@@ -95,12 +167,10 @@
      per button to extract. */
   .btn-secondary {
     @apply rounded-md border border-line font-medium transition-colors duration-150
-      hover:border-water hover:text-water hover:bg-water-soft
-      focus-visible:ring-2 ring-water focus:outline-none;
+      hover:border-water hover:text-water hover:bg-water-soft;
   }
   .btn-secondary-danger {
     @apply rounded-md border border-line font-medium transition-colors duration-150
-      hover:border-red hover:text-red hover:bg-red-bg
-      focus-visible:ring-2 ring-water focus:outline-none;
+      hover:border-red hover:text-red hover:bg-red-bg;
   }
 }

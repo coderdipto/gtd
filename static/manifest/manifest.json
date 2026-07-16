@@ -3,8 +3,8 @@
   "short_name": "GTD",
   "start_url": "/capture/",
   "display": "standalone",
-  "background_color": "#FAFAF8",
-  "theme_color": "#0F766E",
+  "background_color": "#FAF3E5",
+  "theme_color": "#BE5133",
   "icons": [
     { "src": "/static/icons/app/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/static/icons/app/icon-512.png", "sizes": "512x512", "type": "image/png" }

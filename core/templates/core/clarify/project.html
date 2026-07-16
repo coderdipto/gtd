@@ -23,15 +23,15 @@
           <span class="font-mono text-xs text-ink-soft w-4" x-text="i === 0 ? '•' : ''"></span>
           <input type="text" name="subtask_title" x-model="subtasks[i]"
                  :placeholder="i === 0 ? 'Next action (flagged automatically)' : 'Subtask'"
-                 class="flex-1 text-sm border border-line rounded-md p-2 focus:border-water focus:outline-none">
+                 class="flex-1 text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
           <button type="button" x-show="subtasks.length > 1" @click="subtasks.splice(i, 1)"
-                  class="text-ink-soft hover:text-red text-xs focus-visible:ring-2 ring-water focus:outline-none rounded-md">&times;</button>
+                  class="text-ink-soft hover:text-red text-xs focus:outline-none rounded-md">&times;</button>
         </div>
       </template>
     </div>
-    <button type="button" @click="subtasks.push('')" class="mt-2 text-xs text-water hover:underline focus-visible:ring-2 ring-water focus:outline-none rounded-md">+ add subtask</button>
+    <button type="button" @click="subtasks.push('')" class="mt-2 text-xs text-water hover:underline focus:outline-none rounded-md">+ add subtask</button>
   </div>
 
-  <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save project</button>
+  <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save project</button>
 </form>
 {% endblock %}

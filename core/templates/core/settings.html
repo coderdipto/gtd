@@ -17,9 +17,9 @@
       <div>
         <label class="block text-xs text-ink-soft mb-1" for="id_label">Label</label>
         <input type="text" name="label" id="id_label" value="iPhone"
-               class="h-9 px-2 border border-line rounded-md text-sm focus:outline-none focus-visible:ring-2 ring-water">
+               class="h-9 px-2 bg-surface text-ink border border-line rounded-md text-sm focus:outline-none">
       </div>
-      <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm focus-visible:ring-2 ring-water focus:outline-none">Create token</button>
+      <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm focus:outline-none">Create token</button>
     </form>
 
     <div id="token-list">
@@ -62,7 +62,7 @@
         endpoint only accepts a real top-level navigation). Needs an actual browser navigation.
         {% endcomment %}
         <a href="{% url 'google_connect' %}" hx-boost="false"
-           class="h-9 px-3 inline-flex items-center rounded-md bg-water text-white text-sm focus-visible:ring-2 ring-water focus:outline-none">Connect Google</a>
+           class="h-9 px-3 inline-flex items-center rounded-md bg-water text-white text-sm focus:outline-none">Connect Google</a>
       {% else %}
         <p class="text-ink-soft text-xs">Set <code class="font-mono">GOOGLE_CLIENT_ID</code>/<code class="font-mono">GOOGLE_CLIENT_SECRET</code>/<code class="font-mono">FERNET_KEY</code> in <code class="font-mono">.env</code> first (see <code class="font-mono">.env.example</code>).</p>
       {% endif %}

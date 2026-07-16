@@ -4,7 +4,7 @@
   {% if quadrant == "q3" %}
     <form hx-post="{% url 'review_eisenhower_drop' project.id 'q3' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML" class="space-y-1 mb-1">
       <input type="hidden" name="action" value="waiting">
-      <input type="text" name="waiting_on" placeholder="Delegate to…" class="w-full h-8 text-xs border border-line rounded-md px-1 mb-1">
+      <input type="text" name="waiting_on" placeholder="Delegate to…" class="w-full h-8 text-xs bg-surface text-ink border border-line rounded-md px-1 mb-1">
       <button type="submit" class="w-full h-8 rounded-md bg-amber text-white text-xs">Delegate (Waiting For)</button>
     </form>
     <form hx-post="{% url 'review_eisenhower_drop' project.id 'q3' %}" hx-target="#eh-card-{{ project.id }}" hx-swap="outerHTML">

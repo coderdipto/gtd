@@ -6,6 +6,6 @@
   {% csrf_token %}
   {% include "core/partials/field.html" with field=form.title %}
   {% include "core/partials/field_tagged.html" with field=form.body all_tags=all_tags %}
-  <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save note</button>
+  <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save note</button>
 </form>
 {% endblock %}

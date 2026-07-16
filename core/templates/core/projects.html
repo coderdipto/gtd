@@ -3,12 +3,36 @@
 {% block title %}Projects · GTD{% endblock %}
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-6">
-  <h1 class="font-display font-bold text-2xl mb-4">Projects</h1>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="font-display font-bold text-2xl">Projects</h1>
+    <div class="flex items-center gap-2 shrink-0" x-data="{ open: false }">
+      {% if templates %}
+        <div class="relative">
+          <button type="button" @click="open = !open" @click.outside="open = false"
+                  class="btn-secondary h-9 px-3 text-sm">From template ▾</button>
+          <div x-show="open" x-cloak
+               class="absolute right-0 mt-1 w-60 z-10 bg-surface border border-line rounded-md shadow-sm py-1">
+            {% for t in templates %}
+              <form method="post" action="{% url 'project_from_template' t.id %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full text-left px-3 py-2 text-sm hover:bg-water-soft focus:outline-none flex items-center justify-between">
+                  <span class="truncate">{{ t.name }}</span>
+                  <span class="font-mono text-xs text-ink-soft shrink-0 ml-2">{{ t.items.count }}</span>
+                </button>
+              </form>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+      <a href="{% url 'project_templates' %}" class="btn-secondary h-9 px-3 text-sm">Templates</a>
+    </div>
+  </div>
   <div class="mb-4">{% include "components/filter_bar.html" %}</div>
   <div class="grid gap-3">
     {% for project in projects %}
       <a href="{% url 'project_detail' project.id %}"
-         class="block bg-surface border border-line rounded-md p-4 hover:border-water focus-visible:ring-2 ring-water focus:outline-none">
+         class="block bg-surface border border-line rounded-md p-4 hover:border-water focus:outline-none">
         <div class="flex items-center justify-between gap-2 mb-1">
           <p class="font-medium truncate">{{ project.title }}</p>
           <div class="flex items-center gap-2 shrink-0">
@@ -31,13 +55,13 @@
     <div class="divide-y divide-line border-t border-b border-line">
       {% for project in done_projects %}
         <div id="task-row-{{ project.id }}" class="flex items-center justify-between gap-3 py-3 px-1">
-          <a href="{% url 'project_detail' project.id %}" class="text-sm truncate text-ink-soft hover:text-water hover:underline focus-visible:ring-2 ring-water focus:outline-none rounded-sm">{{ project.title }}</a>
+          <a href="{% url 'project_detail' project.id %}" class="text-sm truncate text-ink-soft hover:text-water hover:underline focus:outline-none rounded-sm">{{ project.title }}</a>
           <div class="flex items-center gap-3 shrink-0">
             <span class="font-mono text-xs text-ink-soft">done {{ project.completed_at|date:"d M" }}</span>
             <button type="button"
                     hx-post="{% url 'task_reopen' project.id %}"
                     hx-target="#task-row-{{ project.id }}" hx-swap="outerHTML swap:150ms"
-                    class="text-water hover:underline text-xs focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+                    class="text-water hover:underline text-xs focus:outline-none rounded-md">
               Reopen
             </button>
           </div>

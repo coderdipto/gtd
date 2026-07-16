@@ -6,10 +6,18 @@
   <form method="post" class="space-y-3">
     {% csrf_token %}
     <input type="text" name="title" placeholder="Title" required autofocus
-           class="w-full h-10 text-lg font-medium border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+           class="w-full h-10 text-lg font-medium bg-surface text-ink border border-line rounded-md px-3 focus:border-water focus:outline-none">
     <textarea name="body" rows="12" placeholder="@context #tag"
-              class="w-full text-sm border border-line rounded-md p-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water"></textarea>
-    <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save note</button>
+              class="w-full text-sm bg-surface text-ink border border-line rounded-md p-3 focus:border-water focus:outline-none"></textarea>
+    <label class="block text-sm">
+      <span class="text-ink-soft text-xs">Linked project (optional)</span>
+      <select name="linked_project"
+              class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
+        <option value="">— none —</option>
+        {% for p in projects %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save note</button>
   </form>
 </div>
 {% endblock %}

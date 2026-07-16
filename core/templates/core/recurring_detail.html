@@ -16,7 +16,7 @@
       {% else %}
         <form method="post" action="{% url 'recurring_activate' template.id %}">
           {% csrf_token %}
-          <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm focus-visible:ring-2 ring-water focus:outline-none">Activate</button>
+          <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm focus:outline-none">Activate</button>
         </form>
       {% endif %}
     </div>

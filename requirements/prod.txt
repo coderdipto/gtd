@@ -1,3 +1,7 @@
 -r base.txt
 gunicorn>=23.0,<24.0
 boto3>=1.35,<2.0
+# Prod-only: serves content-hashed static assets with far-future cache headers.
+# Middleware + CompressedManifestStaticFilesStorage are wired only when DEBUG is
+# False (see gtd/settings.py), so a dev checkout never needs this installed.
+whitenoise[brotli]>=6.0,<7.0

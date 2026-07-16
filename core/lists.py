@@ -48,7 +48,9 @@ def _toggle_url(request, param, value):
 
 
 def _engage_base_qs():
-    return Task.objects.filter(is_project=False, list=Task.List.NEXT, completed_at__isnull=True)
+    return Task.objects.filter(
+        is_project=False, list=Task.List.NEXT, completed_at__isnull=True
+    ).select_related("area", "parent").prefetch_related("tags")
 
 
 def _menu_moves(task):
@@ -191,7 +193,12 @@ def tasks_view(request):
     if area_filter:
         qs = qs.filter(area_id=area_filter)
 
-    qs = qs.select_related("parent", "area").order_by("sort_order", "id").distinct()
+    qs = (
+        qs.select_related("parent", "area")
+        .prefetch_related("tags")
+        .order_by("sort_order", "id")
+        .distinct()
+    )
     all_tasks = list(qs)
 
     implicit_ids = set()
@@ -223,6 +230,7 @@ def tasks_view(request):
         done_tasks = list(
             Task.objects.filter(list=Task.List.NEXT, is_project=False, completed_at__isnull=False)
             .select_related("parent", "area")
+            .prefetch_related("tags")
             .order_by("-completed_at")[:50]
         )
         done_meta = {t.id: f"done {timezone.localtime(t.completed_at):%d %b}" for t in done_tasks}
@@ -295,13 +303,68 @@ def tasks_view(request):
     )
 
 
+# --- Engage (task #16) -----------------------------------------------------
+
+ENERGY_RANK = {"low": 1, "medium": 2, "high": 3}
+ENGAGE_TIME_OPTIONS = [15, 30, 60]  # minutes
+
+
+@login_required
+def engage_view(request):
+    """"What can I do right now?" — filter next actions by the three classic GTD
+    constraints: context (@tag), available time (estimate <= N), and energy.
+
+    Each facet is a "fits within" filter, and an unset field on a task means
+    "always eligible" (never silently hidden just because it lacks an estimate
+    or energy). Energy/time use <=: low energy shows only low-energy tasks; a
+    15-minute window shows only tasks estimated at 15 minutes or less.
+    """
+    today = _today_local()
+    qs = _engage_base_qs()
+
+    context_filter = request.GET.get("context") or ""
+    energy_filter = request.GET.get("energy") or ""
+    time_filter = request.GET.get("time") or ""
+
+    if context_filter:
+        qs = qs.filter(tags__name=context_filter, tags__is_context=True)
+    if energy_filter in ENERGY_RANK:
+        allowed = [e for e, rank in ENERGY_RANK.items() if rank <= ENERGY_RANK[energy_filter]]
+        qs = qs.filter(Q(energy__in=allowed) | Q(energy=""))
+    if time_filter.isdigit():
+        qs = qs.filter(Q(estimate_min__lte=int(time_filter)) | Q(estimate_min__isnull=True))
+
+    tasks = list(qs.order_by("sort_order", "id").distinct())
+    any_active = bool(context_filter or energy_filter or time_filter)
+
+    return render(
+        request,
+        "core/engage.html",
+        {
+            "tasks": tasks,
+            "meta": {t.id: _task_meta(t, today) for t in tasks},
+            "menu_moves": {t.id: _menu_moves(t) for t in tasks},
+            "contexts": Tag.objects.filter(is_context=True).order_by("name"),
+            "time_options": ENGAGE_TIME_OPTIONS,
+            "energy_options": Task._meta.get_field("energy").choices,
+            "selected": {"context": context_filter, "energy": energy_filter, "time": time_filter},
+            "clear_url": request.path if any_active else None,
+        },
+    )
+
+
 # --- Waiting For ----------------------------------------------------------
 
 
 @login_required
 def waiting_view(request):
     today = _today_local()
-    tasks = list(Task.objects.filter(list=Task.List.WAITING, completed_at__isnull=True).order_by("waiting_since", "id"))
+    tasks = list(
+        Task.objects.filter(list=Task.List.WAITING, completed_at__isnull=True)
+        .select_related("area", "parent")
+        .prefetch_related("tags")
+        .order_by("waiting_since", "id")
+    )
 
     def overdue(t):
         if not t.waiting_since:
@@ -366,7 +429,12 @@ def _waiting_actions(task):
 
 @login_required
 def someday_view(request):
-    tasks = list(Task.objects.filter(list=Task.List.SOMEDAY, completed_at__isnull=True).order_by("sort_order", "id"))
+    tasks = list(
+        Task.objects.filter(list=Task.List.SOMEDAY, completed_at__isnull=True)
+        .select_related("area", "parent")
+        .prefetch_related("tags")
+        .order_by("sort_order", "id")
+    )
     actions = {t.id: [{"label": "Activate", "url": reverse("someday_activate", args=[t.id])}] for t in tasks}
     return render(request, "core/someday.html", {"tasks": tasks, "actions": actions})
 
@@ -389,7 +457,12 @@ def someday_activate(request, pk):
 
 @login_required
 def trash_view(request):
-    tasks = list(Task.objects.trash().order_by("-trashed_at"))
+    tasks = list(
+        Task.objects.trash()
+        .select_related("area", "parent")
+        .prefetch_related("tags")
+        .order_by("-trashed_at")
+    )
     actions = {
         t.id: [
             {"label": "Restore", "url": reverse("task_restore", args=[t.id])},

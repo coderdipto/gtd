@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load gtd_extras %}
+{% block title %}Engage · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <h1 class="font-display font-bold text-2xl mb-1">Engage</h1>
+  <p class="text-ink-soft text-sm mb-4">What can you do right now? Narrow your next actions by context, the time you have, and your energy.</p>
+
+  {# GET form: each select auto-submits, so picking a facet reloads the list. #}
+  <form method="get" class="grid gap-3 sm:grid-cols-3 mb-5">
+    <label class="block text-sm">
+      <span class="text-ink-soft text-xs">Context</span>
+      <select name="context" onchange="this.form.requestSubmit()"
+              class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
+        <option value="">Any context</option>
+        {% for c in contexts %}
+          <option value="{{ c.name }}" {% if selected.context == c.name %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="block text-sm">
+      <span class="text-ink-soft text-xs">Time available</span>
+      <select name="time" onchange="this.form.requestSubmit()"
+              class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
+        <option value="">Any time</option>
+        {% for m in time_options %}
+          <option value="{{ m }}" {% if selected.time == m|stringformat:'s' %}selected{% endif %}>{{ m }} min or less</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="block text-sm">
+      <span class="text-ink-soft text-xs">Energy</span>
+      <select name="energy" onchange="this.form.requestSubmit()"
+              class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
+        <option value="">Any energy</option>
+        {% for value, label in energy_options %}
+          <option value="{{ value }}" {% if selected.energy == value %}selected{% endif %}>{{ label }} or less</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+
+  {% if clear_url %}
+    <div class="mb-3"><a href="{{ clear_url }}" class="text-xs text-water hover:underline focus:outline-none rounded-md">Clear filters</a></div>
+  {% endif %}
+
+  <div class="divide-y divide-line border-t border-b border-line">
+    {% for task in tasks %}
+      {% include "components/task_row.html" with task=task meta=meta|get_item:task.id menu_moves=menu_moves|get_item:task.id %}
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/circle-check.svg" heading="Nothing fits." body="No next action matches those constraints — try widening a filter." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

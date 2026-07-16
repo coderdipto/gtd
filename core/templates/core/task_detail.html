@@ -52,7 +52,11 @@
       {% include "core/partials/field.html" with field=form.due_date %}
     </div>
     {% include "core/partials/field.html" with field=form.area %}
-    <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus-visible:ring-2 ring-water focus:outline-none">Save changes</button>
+    <div class="grid grid-cols-2 gap-3">
+      {% include "core/partials/field.html" with field=form.energy %}
+      {% include "core/partials/field.html" with field=form.estimate_min %}
+    </div>
+    <button type="submit" class="h-11 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save changes</button>
   </form>
 
   {% include "components/calendar_time_panel.html" %}

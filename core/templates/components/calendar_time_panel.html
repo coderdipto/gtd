@@ -53,9 +53,9 @@ the calendar showing outdated events indefinitely).
     <summary class="text-xs text-ink-soft cursor-pointer hover:text-water">Enter exact times instead</summary>
     <form id="add-block-form" method="post" action="{% url 'timeblock_create' task.id %}" class="flex items-center gap-2 flex-wrap mt-2">
       {% csrf_token %}
-      <input type="datetime-local" name="start" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+      <input type="datetime-local" name="start" required class="h-9 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
       <span class="text-ink-soft text-xs">to</span>
-      <input type="datetime-local" name="end" required class="h-9 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+      <input type="datetime-local" name="end" required class="h-9 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
       <button type="submit" class="btn-secondary h-9 px-3 text-sm">Add block</button>
     </form>
   </details>

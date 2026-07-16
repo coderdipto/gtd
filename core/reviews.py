@@ -1,6 +1,7 @@
 from datetime import datetime, time as _time, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -225,7 +226,11 @@ def _weekly_projects(request, session):
 
     from .projects import _project_state_badge
 
-    projects = list(Task.objects.filter(is_project=True, completed_at__isnull=True).order_by("title"))
+    projects = list(
+        Task.objects.filter(is_project=True, completed_at__isnull=True)
+        .prefetch_related(Prefetch("subtasks", queryset=Task.objects.order_by("sort_order", "id")))
+        .order_by("title")
+    )
     rows = [{"project": p, "badge": _project_state_badge(p)} for p in projects]
     return _render_phase(request, session, "projects", "core/review/projects.html", {"rows": rows})
 
@@ -298,7 +303,11 @@ def _weekly_eisenhower(request, session):
 
     from .projects import _next_line
 
-    projects = list(Task.objects.filter(is_project=True, completed_at__isnull=True).order_by("title"))
+    projects = list(
+        Task.objects.filter(is_project=True, completed_at__isnull=True)
+        .prefetch_related(Prefetch("subtasks", queryset=Task.objects.order_by("sort_order", "id")))
+        .order_by("title")
+    )
     next_lines = {p.id: _next_line(p) for p in projects}
     return _render_phase(
         request, session, "eisenhower", "core/review/eisenhower.html", {"projects": projects, "next_lines": next_lines}

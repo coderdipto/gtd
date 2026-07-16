@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Project templates · GTD{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="flex items-center justify-between mb-1">
+    <h1 class="font-display font-bold text-2xl">Project templates</h1>
+    <a href="{% url 'projects' %}" class="text-sm text-water hover:underline focus:outline-none rounded-md">← Projects</a>
+  </div>
+  <p class="text-ink-soft text-sm mb-5">Reusable subtask checklists. Save any project as a template from its detail page, then spin up a fresh project from it in one click.</p>
+
+  <div class="grid gap-3">
+    {% for t in templates %}
+      <div class="bg-surface border border-line rounded-md p-4">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <p class="font-medium truncate">{{ t.name }}</p>
+          <div class="flex items-center gap-2 shrink-0">
+            <form method="post" action="{% url 'project_from_template' t.id %}">
+              {% csrf_token %}
+              <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs focus:outline-none">New project</button>
+            </form>
+            <form method="post" action="{% url 'template_delete' t.id %}"
+                  onsubmit="return confirm('Delete this template?')">
+              {% csrf_token %}
+              <button type="submit" class="h-8 px-3 text-xs text-ink-soft hover:text-red focus:outline-none rounded-md">Delete</button>
+            </form>
+          </div>
+        </div>
+        <ol class="list-decimal ml-5 text-sm text-ink-soft space-y-0.5">
+          {% for item in t.items.all %}
+            <li>{{ item.title }}</li>
+          {% empty %}
+            <li class="list-none italic">No steps.</li>
+          {% endfor %}
+        </ol>
+      </div>
+    {% empty %}
+      {% include "components/empty_state.html" with icon="icons/folder.svg" heading="No templates yet." body="Open a project and choose “Save as template” to create your first one." %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -6,21 +6,21 @@
   <div class="flex items-center justify-between gap-3 mb-4">
     <h1 class="font-display font-bold text-2xl">Notes</h1>
     <a href="{% url 'note_create' %}"
-       class="h-9 px-3 rounded-md bg-water text-white text-sm font-medium flex items-center focus-visible:ring-2 ring-water focus:outline-none">
+       class="h-9 px-3 rounded-md bg-water text-white text-sm font-medium flex items-center focus:outline-none">
       + New note
     </a>
   </div>
 
   <form method="get" class="mb-3">
     <input type="text" name="q" value="{{ q }}" placeholder="Search notes…"
-           class="w-full h-10 text-sm border border-line rounded-md px-3 focus:border-water focus:outline-none focus-visible:ring-2 ring-water">
+           class="w-full h-10 text-sm bg-surface text-ink border border-line rounded-md px-3 focus:border-water focus:outline-none">
   </form>
 
   {% if chips %}<div class="mb-4">{% include "components/filter_bar.html" %}</div>{% endif %}
 
   <div class="divide-y divide-line border-t border-b border-line">
     {% for note in notes %}
-      <a href="{% url 'note_detail' note.id %}" class="block py-3 px-1 hover:bg-water-soft/30 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+      <a href="{% url 'note_detail' note.id %}" class="block py-3 px-1 hover:bg-water-soft/30 focus:outline-none rounded-md">
         <p class="text-sm font-medium truncate">{{ note.title }}</p>
         <div class="flex items-center gap-2 mt-1">
           <p class="font-mono text-xs text-ink-soft">{{ note.updated_at|date:"d M Y" }}</p>

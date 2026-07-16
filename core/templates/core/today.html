@@ -17,7 +17,7 @@
       {% for block in missed_blocks %}
         <div class="flex items-center justify-between text-sm py-1">
           <span>{{ block.task.title }}</span>
-          <a href="{% url 'calendar_page' %}" class="text-red hover:underline text-xs font-mono focus-visible:ring-2 ring-water focus:outline-none rounded-md">Reschedule</a>
+          <a href="{% url 'calendar_page' %}" class="text-red hover:underline text-xs font-mono focus:outline-none rounded-md">Reschedule</a>
         </div>
       {% endfor %}
     </div>
@@ -27,7 +27,7 @@
 
   <div>
     <button type="button" @click="anytimeOpen = !anytimeOpen"
-            class="flex items-center gap-2 text-sm font-medium text-ink-soft hover:text-ink mb-2 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+            class="flex items-center gap-2 text-sm font-medium text-ink-soft hover:text-ink mb-2 focus:outline-none rounded-md">
       <span :class="anytimeOpen ? 'rotate-90' : ''" class="transition-transform">{% include "icons/chevron-right.svg" %}</span>
       Anytime — pick from here
       <span class="font-mono text-xs">({{ anytime|length }})</span>
@@ -54,10 +54,12 @@
     </div>
   </div>
 
+  {% include "core/partials/today_plan.html" %}
+
   <div class="mt-8" x-data="gtdTipStrip()" x-show="visible" x-cloak>
     <div class="flex items-center justify-between gap-3 text-xs text-ink-soft border-t border-line pt-3">
       <p x-text="tip"></p>
-      <button type="button" @click="dismiss()" class="shrink-0 hover:text-ink focus-visible:ring-2 ring-water focus:outline-none rounded-md">Dismiss</button>
+      <button type="button" @click="dismiss()" class="shrink-0 hover:text-ink focus:outline-none rounded-md">Dismiss</button>
     </div>
   </div>
 </div>

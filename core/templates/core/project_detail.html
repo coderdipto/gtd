@@ -9,15 +9,23 @@
 <div class="max-w-3xl mx-auto px-4 py-6">
   <div class="flex items-center justify-between gap-3 mb-1">
     <h1 class="font-display font-bold text-2xl truncate">{{ project.title }}</h1>
-    <button type="button"
-            hx-post="{% url 'task_complete' project.id %}"
-            hx-vals='{"force": "1"}'
-            hx-confirm="Complete anyway? Subtasks will be completed too."
-            hx-target="body" hx-swap="none"
-            onclick="setTimeout(() => window.location = '{% url 'projects' %}', 200)"
-            class="btn-secondary h-9 px-3 text-sm shrink-0">
-      Mark project done
-    </button>
+    <div class="flex items-center gap-2 shrink-0">
+      <form method="post" action="{% url 'template_from_project' project.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-secondary h-9 px-3 text-sm" title="Save this project's subtasks as a reusable template">
+          Save as template
+        </button>
+      </form>
+      <button type="button"
+              hx-post="{% url 'task_complete' project.id %}"
+              hx-vals='{"force": "1"}'
+              hx-confirm="Complete anyway? Subtasks will be completed too."
+              hx-target="body" hx-swap="none"
+              onclick="setTimeout(() => window.location = '{% url 'projects' %}', 200)"
+              class="btn-secondary h-9 px-3 text-sm">
+        Mark project done
+      </button>
+    </div>
   </div>
   <div class="flex items-center gap-2 mb-4">
     {% badge "progress" text=project.progress_label %}
@@ -33,7 +41,7 @@
       <form method="post" action="{% url 'project_add_subtask' project.id %}" class="flex items-center gap-2 shrink-0">
         {% csrf_token %}
         <input type="text" name="title" placeholder="Add next task" required
-               class="h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+               class="h-8 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
         <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Add</button>
       </form>
     </div>
@@ -55,12 +63,27 @@
     <form method="post" action="{% url 'project_add_subtask' project.id %}" class="flex items-center gap-2 mt-3">
       {% csrf_token %}
       <input type="text" name="title" placeholder="Add subtask" required
-             class="flex-1 h-9 text-sm border border-line rounded-md px-3 focus:border-water focus:outline-none">
+             class="flex-1 h-9 text-sm bg-surface text-ink border border-line rounded-md px-3 focus:border-water focus:outline-none">
       <button type="submit" class="h-9 px-3 rounded-md bg-water text-white text-sm">Add</button>
     </form>
   </div>
 
   {% include "components/calendar_time_panel.html" with task=project %}
+
+  {% if linked_notes %}
+    <div class="mb-6">
+      <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Reference notes</h2>
+      <div class="divide-y divide-line border-t border-b border-line">
+        {% for note in linked_notes %}
+          <a href="{% url 'note_detail' note.id %}"
+             class="flex items-center gap-2 py-2.5 px-1 text-sm hover:text-water focus:outline-none rounded-sm [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-ink-soft">
+            {% include "icons/folder.svg" %}
+            <span class="truncate">{{ note.title }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
 
   <p class="text-ink-soft text-xs font-mono">
     Created {{ project.created_at|date:"d M Y" }} · {{ project.progress_label }} subtasks complete

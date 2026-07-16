@@ -33,7 +33,7 @@ _BADGE_CLASSES = {
     "waiting_due": f"{_PILL} bg-amber-bg text-amber",
     "q2": f"{_PILL} bg-violet-bg text-violet",
     "stalled": f"{_PILL} bg-amber-bg text-amber",
-    "no_next": f"{_OUTLINE_PILL} border-amber text-amber",
+    "unflagged": f"{_OUTLINE_PILL} border-amber text-amber",
     "progress": f"{_PILL} bg-line text-ink-soft",
     "big3": "text-star",
 }
@@ -42,7 +42,7 @@ _BADGE_CLASSES = {
 @register.inclusion_tag("components/badge.html")
 def badge(kind, n=None, text=None, overdue=False):
     """Renders one of the closed badge vocabulary (docs/design.md §6).
-    kind: carried_over|missed|overdue|waiting|q2|stalled|no_next|progress|big3
+    kind: carried_over|missed|overdue|waiting|q2|stalled|unflagged|progress|big3
     """
     classes = _BADGE_CLASSES["waiting_due" if (kind == "waiting" and overdue) else kind]
     labels = {
@@ -52,7 +52,7 @@ def badge(kind, n=None, text=None, overdue=False):
         "waiting": f"waiting {n}d",
         "q2": "Q2",
         "stalled": "stalled?",
-        "no_next": "no next →",
+        "unflagged": "unflagged →",
         "progress": text,
         "big3": "★",
     }

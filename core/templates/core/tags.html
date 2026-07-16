@@ -14,7 +14,7 @@
     {% for tag in tags %}
       <div class="flex items-center flex-wrap gap-3 py-3 px-1" x-data="{ renaming: false, merging: false }">
         <span class="font-mono text-sm w-32 truncate {% if tag.is_context %}text-water{% else %}text-ink-soft{% endif %}">{{ tag }}</span>
-        <span class="text-xs text-ink-soft font-mono w-24 shrink-0">{{ tag.task_count }} tasks · {{ tag.note_count }} notes</span>
+        <span class="text-xs text-ink-soft font-mono w-24 shrink-0">{{ tag.task_count }} task{{ tag.task_count|pluralize }} · {{ tag.note_count }} note{{ tag.note_count|pluralize }}</span>
 
         <form method="post" action="{% url 'tag_toggle_context' tag.id %}" class="shrink-0">
           {% csrf_token %}
@@ -30,14 +30,14 @@
               hx-confirm="Delete #{{ tag.name }}? This removes it from every task and note."
               class="ml-auto shrink-0">
           {% csrf_token %}
-          <button type="submit" class="h-7 px-2 rounded-md text-red text-xs hover:underline focus-visible:ring-2 ring-water focus:outline-none">Delete</button>
+          <button type="submit" class="h-7 px-2 rounded-md text-red text-xs hover:underline focus:outline-none">Delete</button>
         </form>
 
         <div x-show="renaming" x-cloak class="basis-full order-1">
           <form method="post" action="{% url 'tag_rename' tag.id %}" class="flex items-center gap-2 mt-2">
             {% csrf_token %}
             <input type="text" name="name" value="{{ tag.name }}" required
-                   class="h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+                   class="h-8 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
             <button type="submit" class="h-8 px-3 rounded-md bg-water text-white text-xs">Save</button>
           </form>
         </div>
@@ -45,7 +45,7 @@
         <div x-show="merging" x-cloak class="basis-full order-1">
           <form method="post" action="{% url 'tag_merge' tag.id %}" class="flex items-center gap-2 mt-2">
             {% csrf_token %}
-            <select name="target" class="h-8 text-sm border border-line rounded-md px-2 focus:border-water focus:outline-none">
+            <select name="target" class="h-8 text-sm bg-surface text-ink border border-line rounded-md px-2 focus:border-water focus:outline-none">
               {% for other in tags %}
                 {% if other.id != tag.id %}<option value="{{ other.id }}">{{ other }}</option>{% endif %}
               {% endfor %}

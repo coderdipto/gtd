@@ -8,7 +8,7 @@ so the row stays as a quiet confirmation line until the next full reload.
   <button type="button"
           hx-post="{% url 'task_move' task.id undo_target %}"
           hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML"
-          class="text-water hover:underline text-xs shrink-0 focus-visible:ring-2 ring-water focus:outline-none rounded-md">
+          class="text-water hover:underline text-xs shrink-0 focus:outline-none rounded-md">
     Undo
   </button>
 </div>

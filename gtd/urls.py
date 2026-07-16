@@ -17,3 +17,15 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+    # django-debug-toolbar (dev-only). Import-guarded to match settings.py: a
+    # prod checkout never installs the package, so this include is skipped. Also
+    # skipped under TESTING, in lockstep with the settings.py wiring, so the
+    # namespace's presence matches whether the middleware is actually active.
+    if not settings.TESTING:
+        try:
+            import debug_toolbar  # noqa: F401
+        except ImportError:
+            pass
+        else:
+            urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]

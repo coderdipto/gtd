@@ -3,11 +3,20 @@ Django settings for gtd project.
 """
 
 import os
+import sys
 from pathlib import Path
 
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# True while the test suite is loading settings — under `manage.py test`
+# ("test" in argv) or pytest (imports settings during collection, after the
+# `pytest` module is already imported). Used to keep dev-only, request-time
+# instrumentation (django-debug-toolbar) out of test runs: the runner forces
+# DEBUG=False after settings import, so the toolbar would otherwise activate
+# under any @override_settings(DEBUG=True) test while its URLs are unregistered.
+TESTING = ("test" in sys.argv) or ("pytest" in sys.modules)
 
 env = environ.Env(
     DEBUG=(bool, False),
@@ -19,6 +28,8 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-only-change-me")
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 
 # Application definition
@@ -178,6 +189,24 @@ LOGGING = {
 }
 
 if not DEBUG:
+    # WhiteNoise (prod-only, see requirements/prod.txt): content-hashed static
+    # files with far-future cache headers, so a rebuilt app.css can never serve
+    # stale from browser cache. Middleware goes directly after SecurityMiddleware
+    # per WhiteNoise's docs; the storage backend gzip/brotli-compresses and
+    # fingerprints every file at collectstatic time. Gated on `not DEBUG` so a
+    # dev checkout (which serves static via the staticfiles app and has no
+    # collected manifest) is unaffected and doesn't need whitenoise installed.
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+
     LOG_DIR = env("DJANGO_LOG_DIR", default=str(BASE_DIR / "logs"))
     os.makedirs(LOG_DIR, exist_ok=True)
     LOGGING["handlers"]["file"] = {
@@ -188,3 +217,21 @@ if not DEBUG:
         "formatter": "verbose",
     }
     LOGGING["root"]["handlers"].append("file")
+
+# django-debug-toolbar (dev-only, see requirements/dev.txt). Guarded on the
+# import so a prod checkout — which never installs it — just skips this block.
+# Surfaces the per-request query count that would have caught the list-view
+# N+1s, and guards against new ones regressing as more list views land.
+# Skipped under TESTING so an @override_settings(DEBUG=True) test can't trip the
+# middleware into rendering against URLs that were never registered.
+if DEBUG and not TESTING:
+    try:
+        import debug_toolbar  # noqa: F401
+    except ImportError:
+        pass
+    else:
+        INSTALLED_APPS.append("debug_toolbar")
+        # As early as possible per the toolbar's docs (nothing here encodes the
+        # response body — GZip/WhiteNoise are prod-only — so the top is safe).
+        MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+        INTERNAL_IPS = ["127.0.0.1"]

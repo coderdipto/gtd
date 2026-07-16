@@ -2,7 +2,7 @@ import secrets
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, HttpResponse
+from django.http import FileResponse, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -10,8 +10,9 @@ from django.views.decorators.http import require_POST
 
 from .forms import InboxItemForm
 from .google_calendar import get_credential, google_configured
-from .models import CaptureToken, InboxItem, NotificationSetting
+from .models import CaptureToken, InboxItem, NotificationSetting, Task
 from .notifications import KINDS, is_kind_enabled, send_test_notification
+from .tagging import sync_tags_from_text
 
 
 def stub(request, title):
@@ -89,6 +90,51 @@ def inbox_item_create(request):
 @login_required
 def inbox_page(request):
     return render(request, "core/inbox.html", {"items": _unprocessed_inbox_items()})
+
+
+@login_required
+@require_POST
+def inbox_bulk(request):
+    """Batch-process several inbox items at once (task #18).
+
+    Only the three clarify decisions that need no per-item detail form are
+    available in bulk — done (2-minute rule), trash, and someday. Anything that
+    needs a real Task shape (single action with a due date, a project with
+    subtasks, a delegation) still goes one-at-a-time through the clarify wizard,
+    since there's nothing sensible to batch there. Each item is processed with
+    the same effect its single-item clarify counterpart has, so bulk and
+    one-by-one stay consistent.
+    """
+    action = request.POST.get("action")
+    if action not in {"done", "trash", "someday"}:
+        return HttpResponseBadRequest("unknown bulk action")
+    ids = request.POST.getlist("ids")
+    items = InboxItem.objects.filter(pk__in=ids, processed_at__isnull=True)
+    now = timezone.now()
+    for item in items:
+        if action == "done":
+            item.done_directly = True
+            item.processed_at = now
+            item.save(update_fields=["done_directly", "processed_at"])
+        elif action == "trash":
+            Task.objects.create(
+                title=item.title, description=item.description,
+                list=Task.List.TRASH, trashed_at=now,
+            )
+            item.processed_at = now
+            item.save(update_fields=["processed_at"])
+        else:  # someday
+            task = Task.objects.create(
+                title=item.title, description=item.description, list=Task.List.SOMEDAY,
+            )
+            sync_tags_from_text(task, task.title, task.description)
+            item.processed_at = now
+            item.save(update_fields=["processed_at"])
+
+    html = render_to_string("core/partials/inbox_body.html", {"items": _unprocessed_inbox_items()}, request=request)
+    html += render_to_string("core/partials/trust_strip.html", {"oob": True}, request=request)
+    html += render_to_string("core/partials/sidebar_inbox_count.html", {"oob": True}, request=request)
+    return HttpResponse(html)
 
 
 @login_required

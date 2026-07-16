@@ -98,7 +98,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Postgres: dev DB is `gtd` on the existing shared `postgres-container` Docker container (user `sudipto`), **not** a project-dedicated container — reuses infra also used by other personal projects (e.g. `jimmy` db in the same instance). Connection string lives in `.env` (gitignored; see `.env.example` for the shape). Postgres is required from day one (Notes FTS) — don't fall back to SQLite.
 - Tailwind: standalone CLI binary at `.bin/tailwindcss.exe` (gitignored, ~40MB — re-download from the v3.4.17 GitHub release if missing, not v4: the config uses v3-style `tailwind.config.js` + `safelist`). Rebuild with `.bin/tailwindcss.exe -i static/css/input.css -o static/css/app.css --minify`. `static/css/app.css` is the committed, pre-built output — `input.css` is the source.
 - Tests: `.venv/Scripts/python.exe manage.py test core`.
-- Known gaps (tracked in `docs/task-breakdown.md` Epic 1, marked `[~]`): font woff2 binaries not sourced (falls back to system fonts), PWA icon PNGs (192/512) not generated.
+- Known gaps (tracked in `docs/task-breakdown.md` Epic 1, marked `[~]`): font woff2 binaries not sourced (falls back to system fonts). PWA icon PNGs (192/512) and favicon were generated in the post-audit hardening pass (`static/icons/app/`) — no longer a gap.
 - Git identity is set repo-local only (`git config user.name/email` without `--global`) — do not touch global git config.
 
 ## Product summary

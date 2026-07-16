@@ -1,0 +1,33 @@
+{% comment %}
+  Today "Plan on calendar" panel (task #17). Collapsed by default; on the first
+  open it calls window.initTodayPlan (today-plan.js), which lazy-loads
+  FullCalendar and wires drag-to-time-block. The curated Today tasks are the
+  drag sources — drop one onto a slot to create its TimeBlock.
+{% endcomment %}
+<div class="mt-6" x-data="{ planOpen: false, planInit: false }">
+  <button type="button"
+          @click="planOpen = !planOpen; if (planOpen && !planInit) { planInit = true; $nextTick(() => window.initTodayPlan($root)); }"
+          class="flex items-center gap-2 text-sm font-medium text-ink-soft hover:text-ink mb-2 focus:outline-none rounded-md">
+    <span :class="planOpen ? 'rotate-90' : ''" class="transition-transform">{% include "icons/chevron-right.svg" %}</span>
+    Plan on calendar
+  </button>
+
+  <div x-show="planOpen" x-cloak class="grid gap-4 md:grid-cols-[220px_1fr]">
+    <div id="today-plan-sources" class="space-y-1.5">
+      <p class="text-xs text-ink-soft mb-1">Drag a task onto a time slot →</p>
+      {% for task in curated %}
+        <div class="plan-chip cursor-grab select-none rounded-md border border-line bg-surface px-3 py-2 text-sm hover:border-water"
+             data-task-id="{{ task.id }}" data-title="{{ task.title }}">
+          {{ task.title }}
+        </div>
+      {% empty %}
+        <p class="text-xs text-ink-soft">No Today tasks to plan yet.</p>
+      {% endfor %}
+    </div>
+
+    <div id="today-plan-calendar"
+         data-events-url="{% url 'calendar_events_json' %}"
+         data-create-url-template="{% url 'timeblock_create' 0 %}"
+         data-update-url-template="{% url 'timeblock_update' 0 %}"></div>
+  </div>
+</div>

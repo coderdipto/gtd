@@ -1,3 +1,7 @@
 -r base.txt
 pytest>=8.0,<9.0
 pytest-django>=4.9,<5.0
+# Dev-only: query-count / SQL / timing panels. Wired into settings + urls only
+# when DEBUG is True AND the package imports, so a prod install (which never
+# installs this) is unaffected. See gtd/settings.py and gtd/urls.py.
+django-debug-toolbar>=4.4,<6.0

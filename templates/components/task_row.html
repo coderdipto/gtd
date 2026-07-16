@@ -30,7 +30,7 @@ docs/design.md §4 task_row.html. Context:
             {% endif %}
             hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML swap:150ms"
             aria-label="Complete"
-            class="shrink-0 w-5 h-5 rounded-full border-2 border-line hover:border-water hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none"></button>
+            class="shrink-0 w-5 h-5 rounded-full border-2 border-line hover:border-water hover:bg-water-soft focus:outline-none"></button>
   {% endif %}
 
   {% if subtask_marker or flag_url %}
@@ -38,7 +38,7 @@ docs/design.md §4 task_row.html. Context:
       <button type="button" aria-label="Toggle flagged next action"
               hx-post="{{ flag_url }}" hx-target="#task-row-{{ task.id }}" hx-swap="outerHTML"
               title="{% if subtask_marker == 'flagged' %}Flagged next action - click to unflag{% else %}Click to flag as the next action{% endif %}"
-              class="shrink-0 w-2 h-2 rounded-full focus-visible:ring-2 ring-water focus:outline-none {% if subtask_marker == 'flagged' %}bg-water{% else %}border border-water bg-transparent{% endif %}"></button>
+              class="shrink-0 w-2 h-2 rounded-full focus:outline-none {% if subtask_marker == 'flagged' %}bg-water{% else %}border border-water bg-transparent{% endif %}"></button>
     {% else %}
       <span class="shrink-0 w-2 h-2 rounded-full {% if subtask_marker == 'flagged' %}bg-water{% else %}border border-water bg-transparent{% endif %}"
             title="{% if subtask_marker == 'flagged' %}Flagged next action{% else %}Implicit next action (first incomplete){% endif %}"></span>
@@ -52,7 +52,7 @@ docs/design.md §4 task_row.html. Context:
       {% if task.is_project %}
         <p class="text-sm truncate">{{ task.title }}</p>
       {% else %}
-        <a href="{% url 'task_detail' task.id %}?next={{ request.get_full_path|urlencode }}" class="text-sm truncate hover:text-water hover:underline focus-visible:ring-2 ring-water focus:outline-none rounded-sm">{{ task.title }}</a>
+        <a href="{% url 'task_detail' task.id %}?next={{ request.get_full_path|urlencode }}" class="text-sm truncate hover:text-water hover:underline focus:outline-none rounded-sm">{{ task.title }}</a>
       {% endif %}
       {% if task.big3 %}{% badge "big3" %}{% endif %}
       {% if task.is_project %}{% badge "progress" text=task.progress_label %}{% endif %}
@@ -86,7 +86,7 @@ docs/design.md §4 task_row.html. Context:
   {% if menu_moves %}
     <div class="relative shrink-0" x-data="{ open: false }" @click.outside="open = false">
       <button type="button" @click="open = !open" aria-label="More actions"
-              class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-water-soft focus-visible:ring-2 ring-water focus:outline-none">⋮</button>
+              class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-water-soft focus:outline-none">⋮</button>
       <div x-show="open" x-cloak
            class="absolute right-0 z-10 mt-1 w-40 bg-surface border border-line rounded-md shadow-sm overflow-hidden">
         {% for move in menu_moves %}

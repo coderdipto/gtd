@@ -141,13 +141,16 @@ def timeblock_create(request, task_pk):
         block.gcal_etag = result.get("etag", "")
         block.save(update_fields=["gcal_event_id", "gcal_etag"])
 
-    # This is a plain <form method=post> (project_detail.html's "Add block"),
-    # not a JS caller - <body hx-boost="true"> AJAX-intercepts it and expects
-    # a redirect (or real HTML) back, same as every other boosted form in the
-    # app. A raw JsonResponse instead gets swapped straight into the page as
-    # literal `{"id": 1}` text, with that URL pushed into the address bar -
-    # exactly what a user sees as "nothing happened, and now I'm on a weird
-    # URL showing JSON."
+    # The Today "Plan on calendar" drag (task #17) calls this via htmx.ajax and
+    # stays on the page — it just refetches the calendar afterward, so it wants
+    # an empty body, not a navigation. Detect that by the HX-Request header and
+    # return 204. Everything else here is a plain <form method=post>
+    # (project_detail.html's "Add block"), which <body hx-boost="true">
+    # AJAX-intercepts and expects a redirect (or real HTML) back — a raw
+    # JsonResponse would otherwise get swapped in as literal `{"id": 1}` text
+    # with that URL pushed into the address bar.
+    if request.headers.get("HX-Request") == "true":
+        return HttpResponse(status=204)
     if task.is_project:
         return redirect("project_detail", pk=task.id)
     return redirect("task_detail", pk=task.id)

@@ -133,7 +133,7 @@ Build each as a Django partial in `templates/components/`; reuse everywhere. Nam
 | `★` | star color, no pill | Big-3 this week | Everywhere the task renders |
 | `Q2` | violet pill | Time-blocked as important-not-urgent, expires Sunday | Today/week lists |
 | `stalled?` | amber pill | Project with no incomplete subtasks | Project cards |
-| `no next →` | amber outline pill | Project has subtasks but none flagged next | Project cards |
+| `unflagged →` | amber outline pill | Project's next action is auto-picked (first incomplete subtask by order), not explicitly flagged — shown alongside the "Next: …" line, not instead of it | Project cards |
 | `3/7` | mono grey pill | Subtask progress | Project rows |
 
 Do not add badges beyond this table without updating this file first.

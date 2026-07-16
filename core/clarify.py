@@ -5,6 +5,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import DelegateForm, NoteForm, ProjectForm, SingleActionForm, SomedayForm
 from .models import InboxItem, Task
+from .nlp import horizon_for_date, parse_capture
 from .tagging import all_tags_json, sync_tags_from_text
 
 # The clarify wizard processes InboxItems oldest-first, one at a time (no
@@ -189,7 +190,19 @@ def clarify_reference(request, pk):
 
 
 def _single_initial(item):
-    return {"title": item.title, "description": item.description}
+    # Natural-language pre-fill (task #14): a trailing date phrase in the
+    # captured text ("… tomorrow", "… next friday") pre-fills due_date + a
+    # matching horizon, with the phrase stripped from the title. The raw inbox
+    # text is untouched (capture stays lossless); everything here lands in
+    # editable form fields, so a wrong guess is a one-click fix, not a silent
+    # change. Only the Single-action screen does this — it's the one clarify
+    # target with a due_date/horizon to fill.
+    parsed = parse_capture(item.title)
+    initial = {"title": parsed.cleaned_title, "description": item.description}
+    if parsed.due_date:
+        initial["due_date"] = parsed.due_date
+        initial["horizon"] = horizon_for_date(parsed.due_date)
+    return initial
 
 
 def _single_on_valid(form, item, request):
