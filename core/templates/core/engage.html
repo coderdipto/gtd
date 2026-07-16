@@ -4,7 +4,17 @@
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-6">
   <h1 class="font-display font-bold text-2xl mb-1">Engage</h1>
-  <p class="text-ink-soft text-sm mb-4">What can you do right now? Narrow your next actions by context, the time you have, and your energy.</p>
+  <p class="text-ink-soft text-sm mb-3">What can you do right now? Narrow your next actions by context, the time you have, and your energy.</p>
+
+  {% comment %}
+    One-tap presets (task follow-up) — common context×time×energy combos so you
+    don't set three dropdowns every time. Each is just a pre-built query.
+  {% endcomment %}
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <a href="?time=15" class="rounded-full border border-line px-3 py-1 text-xs hover:border-water focus:outline-none">⚡ Quick wins · ≤15m</a>
+    <a href="?time=30&energy=low" class="rounded-full border border-line px-3 py-1 text-xs hover:border-water focus:outline-none">🔋 Low energy · ≤30m</a>
+    <a href="?energy=high" class="rounded-full border border-line px-3 py-1 text-xs hover:border-water focus:outline-none">🎯 Deep work · high energy</a>
+  </div>
 
   {# GET form: each select auto-submits, so picking a facet reloads the list. #}
   <form method="get" class="grid gap-3 sm:grid-cols-3 mb-5">

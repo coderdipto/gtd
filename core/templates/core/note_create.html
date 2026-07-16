@@ -10,11 +10,12 @@
     <textarea name="body" rows="12" placeholder="@context #tag"
               class="w-full text-sm bg-surface text-ink border border-line rounded-md p-3 focus:border-water focus:outline-none"></textarea>
     <label class="block text-sm">
-      <span class="text-ink-soft text-xs">Linked project (optional)</span>
+      <span class="text-ink-soft text-xs">Linked project or task (optional)</span>
       <select name="linked_project"
               class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
         <option value="">— none —</option>
-        {% for p in projects %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+        {% if projects %}<optgroup label="Projects">{% for p in projects %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</optgroup>{% endif %}
+        {% if tasks %}<optgroup label="Next actions">{% for t in tasks %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}</optgroup>{% endif %}
       </select>
     </label>
     <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save note</button>

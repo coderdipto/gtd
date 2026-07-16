@@ -52,5 +52,6 @@ def task_detail(request, pk):
             "blocks": blocks,
             "blocks_json": blocks_json(blocks, task.title),
             "gcal_connected": get_credential() is not None,
+            "linked_notes": task.linked_notes.filter(trashed_at__isnull=True),
         },
     )

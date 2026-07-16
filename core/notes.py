@@ -53,24 +53,32 @@ def _tag_toggle_url(request, name):
     return f"{request.path}?{qs}" if qs else request.path
 
 
-def _active_projects():
-    return Task.objects.filter(is_project=True, completed_at__isnull=True).exclude(
-        list=Task.List.TRASH
-    ).order_by("title")
+def _active_base():
+    return Task.objects.filter(completed_at__isnull=True).exclude(list=Task.List.TRASH)
 
 
-def _linked_project_from_post(request):
-    """Resolve the optional linked-project select into a project or None (task #19)."""
+def _link_targets():
+    """Projects and standalone next actions a note can be attached to (task #19,
+    later broadened to any task). Returned separately so the select can group
+    them into <optgroup>s."""
+    return {
+        "projects": _active_base().filter(is_project=True).order_by("title"),
+        "tasks": _active_base().filter(is_project=False, parent__isnull=True, list=Task.List.NEXT).order_by("title"),
+    }
+
+
+def _linked_target_from_post(request):
+    """Resolve the optional linked-task/project select into a Task or None."""
     pid = request.POST.get("linked_project")
     if not pid:
         return None
-    return Task.objects.filter(pk=pid, is_project=True).first()
+    return _active_base().filter(pk=pid).first()
 
 
 @login_required
 def note_detail(request, pk):
     note = get_object_or_404(Note, pk=pk, trashed_at__isnull=True)
-    return render(request, "core/note_detail.html", {"note": note, "projects": _active_projects()})
+    return render(request, "core/note_detail.html", {"note": note, **_link_targets()})
 
 
 @login_required
@@ -80,10 +88,10 @@ def note_create(request):
         body = request.POST.get("body", "")
         if not title:
             return HttpResponseBadRequest("Title is required.")
-        note = Note.objects.create(title=title, body=body, linked_project=_linked_project_from_post(request))
+        note = Note.objects.create(title=title, body=body, linked_project=_linked_target_from_post(request))
         sync_tags_from_text(note, note.title, note.body)
         return redirect("note_detail", pk=note.id)
-    return render(request, "core/note_create.html", {"projects": _active_projects()})
+    return render(request, "core/note_create.html", _link_targets())
 
 
 @login_required
@@ -92,7 +100,7 @@ def note_update(request, pk):
     note = get_object_or_404(Note, pk=pk, trashed_at__isnull=True)
     note.title = request.POST.get("title", note.title).strip() or note.title
     note.body = request.POST.get("body", note.body)
-    note.linked_project = _linked_project_from_post(request)
+    note.linked_project = _linked_target_from_post(request)
     note.save(update_fields=["title", "body", "linked_project", "updated_at"])
     sync_tags_from_text(note, note.title, note.body)
     return redirect("note_detail", pk=note.id)

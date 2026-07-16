@@ -1,4 +1,4 @@
-<div id="inbox-body"{% if oob %} hx-swap-oob="true"{% endif %} x-data="{ selected: [] }">
+<div id="inbox-body"{% if oob %} hx-swap-oob="true"{% endif %} x-data="{ selected: [], total: {{ items|length }} }">
   <div class="flex items-center justify-between mb-4">
     <h1 class="font-display font-bold text-2xl">Inbox</h1>
     {% if items %}
@@ -31,6 +31,14 @@
       <button type="button" @click="selected = []" class="h-8 px-3 text-xs text-ink-soft hover:text-ink focus:outline-none rounded-md">Clear</button>
     </div>
 
+    {% if items %}
+      <label class="flex items-center gap-2 mb-1 px-1 text-xs text-ink-soft cursor-pointer select-none w-max">
+        <input type="checkbox" class="w-4 h-4 accent-water focus:outline-none"
+               :checked="total > 0 && selected.length === total"
+               @change='selected = $event.target.checked ? Array.from($root.querySelectorAll("input[name=ids]")).map(c => +c.value) : []'>
+        <span x-text="(total > 0 && selected.length === total) ? 'Deselect all' : 'Select all'"></span>
+      </label>
+    {% endif %}
     <div id="inbox-list" class="divide-y divide-line border-t border-b border-line">
       {% for item in items %}
         {% include "core/partials/inbox_row.html" %}

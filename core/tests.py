@@ -730,6 +730,50 @@ class ProjectViewTests(TestCase):
         self.assertFalse(sub.is_next_action)
 
 
+class AuditFollowupTests(TestCase):
+    """Second-pass polish: favicon, login redirect, note→task links, row facets."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="sudipto", password="testpass123")
+        self.client.login(username="sudipto", password="testpass123")
+
+    def test_favicon_redirects_to_static(self):
+        self.client.logout()  # must work pre-auth
+        response = self.client.get("/favicon.ico")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("favicon", response.headers["Location"])
+
+    def test_login_redirect_url_is_a_real_page(self):
+        from django.conf import settings
+        from django.urls import reverse
+
+        # Should resolve, not be the default /accounts/profile/.
+        self.assertNotEqual(settings.LOGIN_REDIRECT_URL, "/accounts/profile/")
+        reverse(settings.LOGIN_REDIRECT_URL)  # raises if not a valid name
+
+    def test_note_can_link_to_a_plain_task_and_shows_on_task_detail(self):
+        task = Task.objects.create(title="Fix the sink", list=Task.List.NEXT)
+        self.client.post(
+            reverse("note_create"),
+            {"title": "Plumber quote", "body": "", "linked_project": task.id},
+        )
+        note = Note.objects.get(title="Plumber quote")
+        self.assertEqual(note.linked_project_id, task.id)
+        response = self.client.get(reverse("task_detail", args=[task.id]))
+        self.assertContains(response, "Plumber quote")
+
+    def test_task_row_surfaces_energy_and_estimate(self):
+        Task.objects.create(title="Tune it", list=Task.List.NEXT, energy="medium", estimate_min=15)
+        response = self.client.get(reverse("tasks"))
+        self.assertContains(response, "~15m")
+        self.assertContains(response, "medium")
+
+    def test_command_palette_context_includes_active_projects(self):
+        Task.objects.create(title="My project", is_project=True)
+        response = self.client.get(reverse("today"))
+        self.assertContains(response, "My project")  # rendered into palette command list
+
+
 class EngageViewTests(TestCase):
     """Task #16: filter next actions by context × time × energy."""
 

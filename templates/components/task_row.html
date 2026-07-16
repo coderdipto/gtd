@@ -69,6 +69,13 @@ docs/design.md §4 task_row.html. Context:
         {% endfor %}
       </div>
     {% endif %}
+    {% if task.energy or task.estimate_min %}
+      {% comment %}Engage facets (task #16), surfaced as subtle meta - not badges - so you can see why a task matched a context x time x energy filter.{% endcomment %}
+      <div class="flex items-center gap-2 mt-1 text-xs font-mono text-ink-soft">
+        {% if task.estimate_min %}<span title="Time estimate">~{{ task.estimate_min }}m</span>{% endif %}
+        {% if task.energy %}<span title="Energy">⚡ {{ task.get_energy_display|lower }}</span>{% endif %}
+      </div>
+    {% endif %}
   </div>
 
   {% if meta %}<span class="font-mono text-xs text-ink-soft shrink-0">{{ meta }}</span>{% endif %}

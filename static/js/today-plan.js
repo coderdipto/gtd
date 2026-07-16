@@ -37,9 +37,13 @@
         new FullCalendar.Draggable(sources, {
           itemSelector: ".plan-chip",
           eventData: function (chip) {
+            // Use the task's own time estimate (task #16) as the block length
+            // when it has one, so a 15-minute task drops as a 15-minute block;
+            // otherwise fall back to a 1-hour default.
+            var est = parseInt(chip.dataset.estimate, 10);
             return {
               title: chip.dataset.title,
-              duration: "01:00",
+              duration: est > 0 ? { minutes: est } : "01:00",
               extendedProps: { taskId: chip.dataset.taskId },
             };
           },

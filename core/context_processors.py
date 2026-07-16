@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from .models import InboxItem, ReviewSession
+from .models import InboxItem, ReviewSession, Task
 
 
 def trust_strip(request):
@@ -18,4 +18,17 @@ def trust_strip(request):
     )
     review_age_days = (timezone.localtime().date() - last_weekly.completed_at.date()).days if last_weekly else None
 
-    return {"inbox_count": inbox_count, "review_age_days": review_age_days}
+    # Active projects feed the command palette's per-project jump entries
+    # (task-follow-up). Kept small (id/title only) since it runs on every page.
+    palette_projects = list(
+        Task.objects.filter(is_project=True, completed_at__isnull=True)
+        .exclude(list=Task.List.TRASH)
+        .order_by("title")
+        .values("id", "title")
+    )
+
+    return {
+        "inbox_count": inbox_count,
+        "review_age_days": review_age_days,
+        "palette_projects": palette_projects,
+    }

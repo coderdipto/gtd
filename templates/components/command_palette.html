@@ -19,7 +19,7 @@
     <div class="w-full max-w-lg bg-surface border border-line rounded-xl shadow-lg overflow-hidden"
          @click.stop>
       <div class="flex items-center gap-2 px-4 border-b border-line">
-        <span class="text-ink-soft shrink-0">{% include "icons/search.svg" %}</span>
+        <span class="text-ink-soft shrink-0 [&_svg]:w-4 [&_svg]:h-4">{% include "icons/search.svg" %}</span>
         <input x-ref="input" x-model="query" @input="active = 0"
                type="text" autocomplete="off" spellcheck="false"
                placeholder="Jump to a screen, or type a command…"
@@ -59,6 +59,10 @@
         { label: "Next Actions", hint: "Engage", url: "{% url 'tasks' %}", kind: "nav", kw: "tasks todo" },
         { label: "Calendar", hint: "Engage", url: "{% url 'calendar_page' %}", kind: "nav", kw: "time block schedule" },
         { label: "Projects", hint: "Organize", url: "{% url 'projects' %}", kind: "nav", kw: "" },
+        { label: "Project templates", hint: "Organize", url: "{% url 'project_templates' %}", kind: "nav", kw: "reusable checklist" },
+        {% for p in palette_projects %}
+        { label: "{{ p.title|escapejs }}", hint: "Project", url: "{% url 'project_detail' p.id %}", kind: "nav", kw: "project open" },
+        {% endfor %}
         { label: "Waiting For", hint: "Organize", url: "{% url 'waiting' %}", kind: "nav", kw: "delegate" },
         { label: "Someday", hint: "Organize", url: "{% url 'someday' %}", kind: "nav", kw: "maybe later" },
         { label: "Notes", hint: "Organize", url: "{% url 'notes' %}", kind: "nav", kw: "reference" },

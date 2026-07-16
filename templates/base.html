@@ -104,7 +104,7 @@
         </div>
         <div class="flex-1"></div>
         <button type="button" onclick="window.dispatchEvent(new CustomEvent('open-command-palette'))"
-                class="hidden sm:flex items-center gap-2 h-8 px-2.5 rounded-md border border-line text-ink-soft hover:bg-water-soft hover:text-water mr-2 focus:outline-none"
+                class="hidden sm:flex items-center gap-2 h-8 px-2.5 rounded-md border border-line text-ink-soft hover:bg-water-soft hover:text-water mr-2 focus:outline-none [&_svg]:w-4 [&_svg]:h-4"
                 aria-label="Open command palette">
           <span>{% include "icons/search.svg" %}</span>
           <kbd class="text-[10px] font-mono">⌘K</kbd>
@@ -138,6 +138,10 @@
         <a href="{% url 'today' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus:outline-none">
           {% include "icons/circle-check.svg" %}
           <span>Today</span>
+        </a>
+        <a href="{% url 'engage' %}" class="flex flex-col items-center justify-center text-xs text-ink-soft gap-0.5 min-w-[44px] min-h-[44px] focus:outline-none">
+          {% include "icons/search.svg" %}
+          <span>Engage</span>
         </a>
         <a href="{% url 'capture' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-water text-white -mt-6 shadow-sm focus:outline-none">
           {% include "icons/plus.svg" %}

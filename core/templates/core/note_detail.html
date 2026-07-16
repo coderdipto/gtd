@@ -26,7 +26,7 @@
 
   {% if note.linked_project %}
     <div class="mb-4" x-show="!editing">
-      <a href="{% url 'project_detail' note.linked_project.id %}"
+      <a href="{% if note.linked_project.is_project %}{% url 'project_detail' note.linked_project.id %}{% else %}{% url 'task_detail' note.linked_project.id %}{% endif %}"
          class="inline-flex items-center gap-1.5 text-xs text-water hover:underline focus:outline-none rounded-md [&_svg]:w-4 [&_svg]:h-4">
         {% include "icons/folder.svg" %} {{ note.linked_project.title }}
       </a>
@@ -45,11 +45,12 @@
       <textarea name="body" rows="12" placeholder="@context #tag"
                 class="w-full text-sm bg-surface text-ink border border-line rounded-md p-3 focus:border-water focus:outline-none">{{ note.body }}</textarea>
       <label class="block text-sm">
-        <span class="text-ink-soft text-xs">Linked project (optional)</span>
+        <span class="text-ink-soft text-xs">Linked project or task (optional)</span>
         <select name="linked_project"
                 class="mt-1 w-full text-sm bg-surface text-ink border border-line rounded-md p-2 focus:border-water focus:outline-none">
           <option value="">— none —</option>
-          {% for p in projects %}<option value="{{ p.id }}" {% if note.linked_project_id == p.id %}selected{% endif %}>{{ p.title }}</option>{% endfor %}
+          {% if projects %}<optgroup label="Projects">{% for p in projects %}<option value="{{ p.id }}" {% if note.linked_project_id == p.id %}selected{% endif %}>{{ p.title }}</option>{% endfor %}</optgroup>{% endif %}
+          {% if tasks %}<optgroup label="Next actions">{% for t in tasks %}<option value="{{ t.id }}" {% if note.linked_project_id == t.id %}selected{% endif %}>{{ t.title }}</option>{% endfor %}</optgroup>{% endif %}
         </select>
       </label>
       <button type="submit" class="h-10 px-4 rounded-md bg-water text-white text-sm font-medium focus:outline-none">Save</button>

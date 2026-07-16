@@ -17,8 +17,8 @@
       <p class="text-xs text-ink-soft mb-1">Drag a task onto a time slot →</p>
       {% for task in curated %}
         <div class="plan-chip cursor-grab select-none rounded-md border border-line bg-surface px-3 py-2 text-sm hover:border-water"
-             data-task-id="{{ task.id }}" data-title="{{ task.title }}">
-          {{ task.title }}
+             data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-estimate="{{ task.estimate_min|default:'' }}">
+          {{ task.title }}{% if task.estimate_min %} <span class="text-xs font-mono text-ink-soft">~{{ task.estimate_min }}m</span>{% endif %}
         </div>
       {% empty %}
         <p class="text-xs text-ink-soft">No Today tasks to plan yet.</p>

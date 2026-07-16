@@ -62,6 +62,9 @@ MIDDLEWARE = [
 # Views that must stay reachable without login: GCal webhook + capture API
 # (see core/views.py — decorated with @login_not_required).
 LOGIN_URL = "login"
+# Django's default post-login target is /accounts/profile/, which doesn't
+# exist here (404). Send freshly-authenticated users to their Today list.
+LOGIN_REDIRECT_URL = "today"
 
 ROOT_URLCONF = "gtd.urls"
 

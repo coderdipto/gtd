@@ -61,6 +61,21 @@
 
   {% include "components/calendar_time_panel.html" %}
 
+  {% if linked_notes %}
+    <div class="mb-6">
+      <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Reference notes</h2>
+      <div class="divide-y divide-line border-t border-b border-line">
+        {% for note in linked_notes %}
+          <a href="{% url 'note_detail' note.id %}"
+             class="flex items-center gap-2 py-2.5 px-1 text-sm hover:text-water focus:outline-none rounded-sm [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-ink-soft">
+            {% include "icons/folder.svg" %}
+            <span class="truncate">{{ note.title }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
   <div class="mb-6">
     <h2 class="text-xs uppercase tracking-wide text-ink-soft font-medium mb-2">Move</h2>
     <div class="flex items-center gap-2 flex-wrap">
