@@ -88,8 +88,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docs/solution-plan.md` — the authoritative spec: data models (exact field lists in Step 2), build order (Steps 1–12), decision log, and rollout milestones. Treat model/field definitions here as literal — implement as written rather than redesigning.
 - `docs/design.md` — the UI/visual design spec (tokens, components, screens, copy). Read together with the solution plan. **Where they conflict: `solution-plan.md` wins on behavior, `design.md` wins on look and feel.**
 - `docs/task-breakdown.md` — the epic/subtask checklist tracking implementation against the plan above, plus a running log of decisions confirmed during planning (open-decision defaults, git setup, scaffold-from-scratch choice). Update its checkboxes as work lands; don't let it drift from what's actually on disk.
-- `design-files/*.dc.html` — visual mockups/prototypes exported from a design tool (custom `<x-dc>`, `sc-if`, `sc-for`, `{{ }}` template syntax driven by `support.js`). These are references for layout/visual intent only — do not copy their templating syntax into Django templates; translate the visuals into HTMX/Django partials per `design.md` §4.
-- `design-files/uploads/` contains duplicate copies of `design.md`/`solution-plan.md` plus reference screenshots — the `docs/` copies are the ones to edit.
 
 ### Local dev environment
 

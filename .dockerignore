@@ -15,6 +15,5 @@ staticfiles/
 media/
 node_modules/
 .bin/
-design-files/
 docs/screenshots/
 *.log
