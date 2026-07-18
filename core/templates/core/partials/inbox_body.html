@@ -19,7 +19,14 @@
     (done/someday/trash) are batchable; single/project/delegate still go through
     the wizard one at a time.
   {% endcomment %}
-  <form hx-post="{% url 'inbox_bulk' %}" hx-target="#inbox-body" hx-swap="outerHTML">
+  {# hx-disinherit: hx-target/hx-swap here are for THIS form's bulk submit only.
+     htmx inherits both to descendants, so without this the boosted "Clarify"
+     link inside a row (which sets no htmx attrs of its own) would inherit them
+     and swap the whole clarify page into #inbox-body — nesting a second app
+     shell inside the first. Disinheriting keeps the link a plain boosted
+     body-swap navigation; the form's own submit still reads these off itself. #}
+  <form hx-post="{% url 'inbox_bulk' %}" hx-target="#inbox-body" hx-swap="outerHTML"
+        hx-disinherit="hx-target hx-swap">
     {% csrf_token %}
     <div x-show="selected.length > 0" x-cloak
          class="sticky top-16 z-10 mb-2 flex items-center gap-2 rounded-md border border-water bg-water-soft px-3 py-2">
