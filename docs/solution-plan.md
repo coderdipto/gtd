@@ -277,7 +277,7 @@ class NotificationLog(models.Model):
 
 ## Step 4: Clarify wizard
 
-The GTD decision tree as a per-item HTMX wizard. Entry: "Process Inbox" button → takes items **oldest first, one at a time** (cardinal rule; no cherry-picking — next item auto-loads after each decision).
+The GTD decision tree as a per-item HTMX wizard. Primary entry: "Process Inbox" button → takes items **oldest first, one at a time** (the GTD default; next item auto-loads after each decision). A per-row **Clarify** button is the deliberate exception — it opens the wizard directly on that item (cherry-picking), then falls through to the remaining items oldest-first once decided. (Originally spec'd as strictly no-cherry-picking; relaxed after the per-row button made jumping to a specific item the expected behavior.)
 
 Screens per item:
 1. **Is it actionable?** Helper text quotes the doc's Q2. Buttons: *No* → (Trash | Someday | Reference) · *Yes* → next screen.
