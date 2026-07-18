@@ -16,7 +16,10 @@
             title="Under 2 minutes? Do it now.">
       Done
     </button>
-    <a href="{% url 'inbox_process' %}" class="h-9 px-3 rounded-md bg-water text-white text-sm flex items-center focus:outline-none">
+    {# Per-row Clarify opens the wizard on THIS item (not the generic oldest-first
+       entry, which is the "Process inbox" button above). After a decision the
+       wizard falls through to the remaining items oldest-first via _advance. #}
+    <a href="{% url 'clarify_actionable' item.id %}" class="h-9 px-3 rounded-md bg-water text-white text-sm flex items-center focus:outline-none">
       Clarify
     </a>
   </div>
