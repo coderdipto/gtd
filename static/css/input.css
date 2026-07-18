@@ -29,40 +29,66 @@
     --color-star: 202 138 4;
   }
 
+  /* Dark palette: Everforest Dark (medium). Mapped from the upstream palette
+     (github.com/sainnhe/everforest) onto our semantic tokens:
+       paper=bg0 #2d353b · surface=bg1 #343f44 · line=bg3 #475258
+       ink=fg #d3c6aa · ink-soft=grey1 #859289
+       water(accent)=green #a7c080 · water-soft=bg_green #425047
+       amber=yellow #dbbc7f / bg_yellow #4d4c43 · red=red #e67e80 / bg_red #514045
+       violet=purple #d699b6 / bg_visual #543a48 · star=yellow #dbbc7f
+     Note: the light theme's warm terracotta accent becomes Everforest green in
+     dark. Since green is a light pastel, white button text fails contrast on it
+     (~2:1) - the .bg-water text override further down flips accent-button text
+     to dark ink (~6:1), the way Everforest itself renders accent fills. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --color-paper: 30 20 16;
-      --color-surface: 42 29 23;
-      --color-ink: 243 232 221;
-      --color-ink-soft: 179 156 140;
-      --color-line: 74 56 46;
-      --color-water: 226 118 90;
-      --color-water-soft: 61 42 32;
-      --color-amber: 240 180 41;
-      --color-amber-bg: 74 53 16;
-      --color-red: 248 113 113;
-      --color-red-bg: 74 31 31;
-      --color-violet: 167 139 250;
-      --color-violet-bg: 59 46 82;
-      --color-star: 234 179 8;
+      --color-paper: 45 53 59;
+      --color-surface: 52 63 68;
+      --color-ink: 211 198 170;
+      --color-ink-soft: 133 146 137;
+      --color-line: 71 82 88;
+      --color-water: 167 192 128;
+      --color-water-soft: 66 80 71;
+      --color-amber: 219 188 127;
+      --color-amber-bg: 77 76 67;
+      --color-red: 230 126 128;
+      --color-red-bg: 81 64 69;
+      --color-violet: 214 153 182;
+      --color-violet-bg: 84 58 72;
+      --color-star: 219 188 127;
     }
   }
 
   :root[data-theme="dark"] {
-    --color-paper: 30 20 16;
-    --color-surface: 42 29 23;
-    --color-ink: 243 232 221;
-    --color-ink-soft: 179 156 140;
-    --color-line: 74 56 46;
-    --color-water: 226 118 90;
-    --color-water-soft: 61 42 32;
-    --color-amber: 240 180 41;
-    --color-amber-bg: 74 53 16;
-    --color-red: 248 113 113;
-    --color-red-bg: 74 31 31;
-    --color-violet: 167 139 250;
-    --color-violet-bg: 59 46 82;
-    --color-star: 234 179 8;
+    --color-paper: 45 53 59;
+    --color-surface: 52 63 68;
+    --color-ink: 211 198 170;
+    --color-ink-soft: 133 146 137;
+    --color-line: 71 82 88;
+    --color-water: 167 192 128;
+    --color-water-soft: 66 80 71;
+    --color-amber: 219 188 127;
+    --color-amber-bg: 77 76 67;
+    --color-red: 230 126 128;
+    --color-red-bg: 81 64 69;
+    --color-violet: 214 153 182;
+    --color-violet-bg: 84 58 72;
+    --color-star: 219 188 127;
+  }
+
+  /* Accent-button text: templates hardcode `bg-water text-white`, which is
+     legible on the light theme's dark terracotta but not on Everforest's light
+     green. In dark only, flip text on filled-accent elements to dark ink so the
+     green button stays readable. Specificity (0,4,0) beats `.text-white`
+     (0,1,0); scoped to dark so the light theme is untouched. Covers the paired
+     media-query (system dark, no explicit choice) and the toggled-dark case. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .bg-water.text-white {
+      color: rgb(var(--color-paper));
+    }
+  }
+  :root[data-theme="dark"] .bg-water.text-white {
+    color: rgb(var(--color-paper));
   }
 
   /* Plus Jakarta Sans, JetBrains Mono, Fraunces, and Space Grotesk are all
