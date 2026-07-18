@@ -31,7 +31,7 @@
     <h2 class="font-display font-semibold text-lg mb-2">iPhone Shortcut setup</h2>
     <ol class="list-decimal list-inside text-sm space-y-2 text-ink-soft">
       <li>Create a capture token above and copy it.</li>
-      <li>In the Shortcuts app, add action <span class="font-mono text-ink">Get Text from Share Sheet</span> (or <span class="font-mono text-ink">Ask for Text</span> for Siri capture).</li>
+      <li>In the Shortcuts app, add action <span class="font-mono text-ink">Get Text from Share Sheet</span> (or <span class="font-mono text-ink">Ask for Input</span> with its input type set to <span class="font-mono text-ink">Text</span>, for Siri capture).</li>
       <li>Add action <span class="font-mono text-ink">Get Contents of URL</span>: POST to
         <span class="font-mono text-ink">https://gtd.sudipto.dev/api/capture</span>,
         header <span class="font-mono text-ink">Authorization: Bearer &lt;token&gt;</span>,
