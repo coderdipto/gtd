@@ -237,6 +237,8 @@ Not part of the original 12 epics; requested after v1 was functionally complete.
 
 **Releases:** tagged `desktop-v0.1.0` (prefixed, not a bare `v0.1.0` — this repo is the whole GTD app, and the desktop client versions independently of the web app), published as a **prerelease** on GitHub with the Apple Silicon `.dmg` attached. Because the build is unsigned, a downloaded copy carries `com.apple.quarantine` and Gatekeeper rejects it with a misleading **"GTD Capture is damaged and can't be opened"** — so the release notes carry the `xattr -dr com.apple.quarantine "/Applications/GTD Capture.app"` workaround. That command is verified to work (quarantine flag applied to a copy from the published `.dmg`, then removed by it); the resulting *launch* wasn't tested, to avoid a second instance fighting the running one over the global hotkey. Upgrading to a real Developer ID + notarization (`APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID`, which Tauri supports natively) is the fix if this ever needs to install cleanly for anyone who won't paste a terminal command.
 
+`desktop-v0.1.1` (patch) follows the same posture — unsigned prerelease, aarch64 `.dmg`, same quarantine workaround in the notes. Only change: removed a leftover green `#00ff00` debug probe (`ui/index.html`'s `#static-probe`) that had been painting a solid square in the capture window's top-left corner since the transparency-debugging session above.
+
 ---
 
 ## Explicitly out of scope (v2 backlog — do not implement)
