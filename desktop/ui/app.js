@@ -154,6 +154,12 @@ $("capture-form").addEventListener("submit", submitCapture);
 $("settings-form").addEventListener("submit", submitSettings);
 $("test-btn").addEventListener("click", testConnection);
 
+// In-window navigation between the two views, so Settings is reachable even
+// when the tray icon is hidden (notch / menu-bar overflow) and the hotkey only
+// opens the capture card.
+$("open-settings").addEventListener("click", () => showView("settings"));
+$("close-settings").addEventListener("click", () => showView("capture"));
+
 for (const el of document.querySelectorAll("[data-dismiss]")) {
   el.addEventListener("click", dismiss);
 }

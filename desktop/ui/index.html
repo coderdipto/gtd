@@ -13,7 +13,22 @@
     <main class="card" id="view-capture">
       <header class="card-head">
         <span class="label">Capture</span>
-        <span class="queue" id="queue-badge" hidden></span>
+        <span class="head-actions">
+          <span class="queue" id="queue-badge" hidden></span>
+          <!-- The only in-window route to Settings. The tray menu is the other
+               one, but the tray icon can be hidden behind the notch / menu-bar
+               overflow, and the hotkey only ever opens *this* card — without
+               this button, a hidden tray icon leaves Settings unreachable. -->
+          <button
+            type="button"
+            class="icon-btn"
+            id="open-settings"
+            title="Settings"
+            aria-label="Settings"
+          >
+            ⚙
+          </button>
+        </span>
       </header>
 
       <form id="capture-form" autocomplete="off">
@@ -46,6 +61,15 @@
     <main class="card" id="view-settings" hidden>
       <header class="card-head">
         <span class="label">Settings</span>
+        <button
+          type="button"
+          class="icon-btn"
+          id="close-settings"
+          title="Back to capture"
+          aria-label="Back to capture"
+        >
+          ←
+        </button>
       </header>
 
       <form id="settings-form" autocomplete="off">

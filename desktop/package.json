@@ -1,6 +1,6 @@
 {
   "name": "gtd-capture",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Capture-only desktop client for the GTD app. The UI in ui/ is plain HTML/CSS/JS served straight by Tauri — npm is here only to vendor the Tauri CLI, there is no bundler or build step for the frontend.",
   "scripts": {

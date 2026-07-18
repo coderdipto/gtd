@@ -95,6 +95,32 @@ body {
   padding: 2px 8px;
 }
 
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Quiet icon button for the in-header Settings/back affordances — reads as
+   chrome, not a primary action, so it never competes with the Capture button. */
+.icon-btn {
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--line);
+}
+
 /* ------------------------------------------------------------ form fields */
 
 .title-input,
