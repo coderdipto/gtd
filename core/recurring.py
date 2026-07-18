@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 
 from dateutil.rrule import rrulestr
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -93,8 +94,8 @@ def _sync_gcal_event(template):
     end = start + timedelta(minutes=template.block_duration_min)
     body = {
         "summary": template.title,
-        "start": {"dateTime": start.isoformat()},
-        "end": {"dateTime": end.isoformat()},
+        "start": {"dateTime": start.isoformat(), "timeZone": settings.TIME_ZONE},
+        "end": {"dateTime": end.isoformat(), "timeZone": settings.TIME_ZONE},
         "recurrence": [f"RRULE:{template.rrule}"],
     }
     if template.gcal_event_id:
